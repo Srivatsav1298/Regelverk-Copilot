@@ -1,12 +1,16 @@
 import os
 import psycopg2
-# pyrefly: ignore [missing-import
+# pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
+# pyrefly: ignore [missing-import]
+from pgvector.psycopg2 import register_vector
 
 load_dotenv()
 
 def get_connection():
-    return psycopg2.connect(os.environ["DATABASE_URL"])
+    conn = psycopg2.connect(os.environ["DATABASE_URL"])
+    register_vector(conn)   # teaches psycopg2 how to handle the vector type
+    return conn
 
 if __name__ == "__main__":
     conn = get_connection()
