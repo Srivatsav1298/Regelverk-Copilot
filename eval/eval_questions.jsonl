@@ -1,0 +1,12 @@
+{"question": "What is the notice period if I want to terminate an employee?", "must_contain": ["one month", "two months"], "expected_source": "§ 15-3"}
+{"question": "Can I fire someone who is on sick leave?", "must_contain": ["12 months"], "expected_source": "§ 15-8"}
+{"question": "What happens if I dismiss an employee during their probation period?", "must_contain": ["prob"], "expected_source": "§ 15-6"}
+{"question": "Can I terminate a pregnant employee?", "must_contain": ["pregnan"], "expected_source": "§ 15-9"}
+{"question": "What counts as grounds for immediate dismissal without notice?", "must_contain": ["breach"], "expected_source": "§ 15-14"}
+{"question": "Do I need a valid reason to terminate an employee?", "must_contain": ["reason"], "expected_source": "§ 15-7"}
+{"question": "What is the minimum wage in Norway?", "must_contain": [], "expected_source": null}
+{"question": "How much holiday pay am I required to give employees?", "must_contain": [], "expected_source": null}
+{"question": "How long is the notice period for an employee with 12 years of service who is 56 years old?", "must_contain": ["five months"], "expected_source": "§ 15-3"}
+{"question": "Can I suspend an employee while investigating misconduct?", "must_contain": [], "expected_source": null}
+{"question": "Is a verbal notice of termination legally valid?", "must_contain": [], "expected_source": null}
+{"question": "What protections exist for an employee who just returned from parental leave?", "must_contain": ["protect"], "expected_source": "§ 15-9"}

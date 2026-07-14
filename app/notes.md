@@ -23,3 +23,43 @@ where the cited excerpt actually said "four/five/six months" by age bracket).
 Fixed by adding an explicit instruction requiring numbers to be copied
 verbatim from excerpts rather than summarized. This shows citation-correctness
 and answer-correctness are not the same guarantee — worth verifying separately.
+
+## Known limitation: free-tier rate limits
+
+Groq's free tier caps daily tokens per model. Heavy same-day testing/eval
+runs can exhaust this. Mitigated by catching RateLimitError explicitly and
+returning an honest low-confidence message instead of a raw 500 error —
+the API degrades gracefully rather than crashing when its LLM provider is
+temporarily unavailable.
+
+## Known limitation: free-tier rate limits (validated)
+
+Groq's free tier caps daily tokens per model (100,000 TPD for
+llama-3.3-70b-versatile). Confirmed in testing: when this limit is hit,
+the API returns a clean, honest low-confidence fallback message instead
+of crashing — validated across 6 consecutive requests during an
+
+## Known limitation: daily free-tier token quota (per model)
+
+Groq's free tier enforces a 100,000 token/day cap per model. A full 12-question
+eval run (~24 API calls: translation + generation per question) can exhaust
+this after a day of iterative testing. Mitigation: use the smaller
+llama-3.1-8b-instant model for iterative debugging, and run the final,
+reported evaluation number once, fresh, on llama-3.3-70b-versatial after
+the daily quota resets — ensuring the reported accuracy reflects the actual
+production model, not the lighter debugging model.
+
+## Model comparison: llama-3.1-8b-instant vs llama-3.3-70b-versatile on grounding safety
+
+To conserve daily token quota during development, generation was temporarily
+run on the smaller 8b model. This surfaced a meaningful safety difference:
+on two out-of-scope questions (employee suspension, verbal notice validity),
+the 8b model produced confident, plausible-sounding answers with citations
+that did not actually support the claim — a hallucinated-grounding failure.
+The 70b model, tested on the same two questions earlier, correctly identified
+both as out-of-scope with low confidence and no citations.
+
+Conclusion: model capability meaningfully affects the reliability of the
+confidence-flagging and citation-grounding safety mechanisms, not just
+answer fluency. This confirms llama-3.3-70b-versatile as the correct choice
+for the production system, despite its added cost/latency relative to 8b.

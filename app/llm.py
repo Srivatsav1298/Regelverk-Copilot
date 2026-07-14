@@ -1,47 +1,56 @@
 import os
+import json
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 # pyrefly: ignore [missing-import]
-from groq import Groq
-
-import json
+from groq import Groq, RateLimitError, APIError
 from app.schemas import AskResponse
 
 load_dotenv()
 
 client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
+
 def translate_to_norwegian(query: str) -> str:
     """
     Translates a user query into Norwegian using precise Arbeidsmiljøloven
     (Norwegian employment law) terminology, since generic translation misses
     the exact legal vocabulary our source documents use.
+
+    Falls back to the original (English) query if translation fails —
+    embedding an English query is worse than Norwegian, but far better
+    than crashing the whole request.
     """
-    response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
-        messages=[
-            {
-                "role": "system",
-                "content": (
-                    "Translate the user's question into Norwegian (bokmål), using precise "
-                    "Norwegian employment-law terminology as used in Arbeidsmiljøloven. "
-                    "Use these exact terms where relevant:\n"
-                    "- notice period → oppsigelsesfrist\n"
-                    "- to terminate/dismiss an employee → si opp en arbeidstaker\n"
-                    "- termination/notice → oppsigelse\n"
-                    "- probation period → prøvetid\n"
-                    "- summary dismissal / immediate termination → avskjed\n"
-                    "- sick leave protection → oppsigelsesvern ved sykdom\n"
-                    "- pregnancy protection → oppsigelsesvern ved svangerskap\n"
-                    "- unfair dismissal → usaklig oppsigelse\n\n"
-                    "Return ONLY the translated text, nothing else — no quotes, no explanation."
-                )
-            },
-            {"role": "user", "content": query}
-        ],
-        temperature=0,
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Translate the user's question into Norwegian (bokmål), using precise "
+                        "Norwegian employment-law terminology as used in Arbeidsmiljøloven. "
+                        "Use these exact terms where relevant:\n"
+                        "- notice period → oppsigelsesfrist\n"
+                        "- to terminate/dismiss an employee → si opp en arbeidstaker\n"
+                        "- termination/notice → oppsigelse\n"
+                        "- probation period → prøvetid\n"
+                        "- summary dismissal / immediate termination → avskjed\n"
+                        "- sick leave protection → oppsigelsesvern ved sykdom\n"
+                        "- pregnancy protection → oppsigelsesvern ved svangerskap\n"
+                        "- unfair dismissal → usaklig oppsigelse\n\n"
+                        "Return ONLY the translated text, nothing else — no quotes, no explanation."
+                    )
+                },
+                {"role": "user", "content": query}
+            ],
+            temperature=0,
+        )
+        return response.choices[0].message.content.strip()
+    except (RateLimitError, APIError) as e:
+        print(f"⚠️  Translation failed ({e}) — falling back to original query")
+        return query
+
 
 def generate_answer(question: str, chunks: list) -> AskResponse:
     """
@@ -61,11 +70,11 @@ You will be given a question and several candidate excerpts from Arbeidsmiljølo
 Some excerpts may NOT actually be relevant — only cite the ones that genuinely
 support your answer.
 
-CRITICAL ACCURACY RULE: Any specific number (time periods, ages, amounts) in your
-answer MUST come directly from the excerpt text, copied exactly. Do not summarize,
-round, or infer numbers — if an excerpt says "fire måneder" (four months), your
-answer must say four months, not a different number. If you are not certain a
-number appears explicitly in the excerpts, omit it rather than guess.
+CRITICAL ACCURACY RULE: Specific numbers (time periods, ages, amounts) in your answer
+must match the excerpts exactly. However, you must ALWAYS write the answer as a
+natural sentence in your own words, in the question's language — never copy an
+entire excerpt sentence verbatim as the answer, even if it's the correct language.
+The "answer" field must be your own explanation; excerpts belong only in "citations".
 
 IMPORTANT: Always answer in the exact same language the user's question was asked in.
 
@@ -84,15 +93,31 @@ CANDIDATE EXCERPTS:
 {context_block}
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": question},
-        ],
-        temperature=0.2,
-        response_format={"type": "json_object"},
-    )
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": question},
+            ],
+            temperature=0.2,
+            response_format={"type": "json_object"},
+        )
+    except RateLimitError:
+        print("⚠️  Groq rate limit hit — returning graceful fallback response")
+        return AskResponse(
+            answer="The assistant is temporarily at its usage limit for today's "
+                   "free-tier quota. Please try again in a little while.",
+            citations=[],
+            confidence="low",
+        )
+    except APIError as e:
+        print(f"⚠️  Groq API error: {e}")
+        return AskResponse(
+            answer="Something went wrong reaching the assistant. Please try again.",
+            citations=[],
+            confidence="low",
+        )
 
     raw = response.choices[0].message.content
 

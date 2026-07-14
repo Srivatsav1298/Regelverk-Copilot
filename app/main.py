@@ -4,6 +4,10 @@ from app.schemas import AskRequest, AskResponse
 from app.retrieval import retrieve_chunks
 from app.llm import generate_answer
 from app.verification import verify_citations
+# pyrefly: ignore [missing-import]
+from fastapi.staticfiles import StaticFiles
+# pyrefly: ignore [missing-import]
+from fastapi.responses import FileResponse
 
 app = FastAPI(title="Regelverk Copilot")
 
@@ -31,3 +35,9 @@ def ask(request: AskRequest):
         print(f"Downgraded confidence: {unverified_count} unverified citation(s)")
 
     return result
+
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
+
+@app.get("/")
+def serve_ui():
+    return FileResponse("app/static/index.html")

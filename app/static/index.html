@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Regelverk Copilot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-50 min-h-screen">
+    <div class="max-w-2xl mx-auto py-10 px-4">
+        <h1 class="text-2xl font-bold text-slate-800">Regelverk Copilot</h1>
+        <p class="text-slate-500 mb-6">
+            Ask a question about Norwegian termination-of-employment law
+            (Arbeidsmiljøloven, Chapter 15). Not legal advice.
+        </p>
+
+        <div class="flex gap-2 mb-6">
+            <input id="question" type="text" placeholder="e.g. What is the notice period for an employee?"
+                class="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400" />
+            <button id="askBtn" class="bg-slate-800 text-white px-5 py-2 rounded-lg hover:bg-slate-700">
+                Ask
+            </button>
+        </div>
+
+        <div id="loading" class="hidden text-slate-400 mb-4">Thinking...</div>
+
+        <div id="result" class="hidden bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+            <div id="confidenceBadge" class="inline-block text-xs font-semibold px-2 py-1 rounded-full mb-3"></div>
+            <p id="answerText" class="text-slate-800 mb-4"></p>
+
+            <div id="citationsBlock">
+                <p class="text-sm font-semibold text-slate-500 mb-2">Sources</p>
+                <div id="citationsList" class="space-y-2"></div>
+            </div>
+
+            <p id="disclaimerText" class="text-xs text-slate-400 mt-4 border-t pt-3"></p>
+        </div>
+    </div>
+
+    <script>
+        const askBtn = document.getElementById("askBtn");
+        const questionInput = document.getElementById("question");
+        const loading = document.getElementById("loading");
+        const result = document.getElementById("result");
+
+        async function askQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            result.classList.add("hidden");
+            loading.classList.remove("hidden");
+            askBtn.disabled = true;
+
+            try {
+                const response = await fetch("/ask", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question }),
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}`);
+                }
+
+                const data = await response.json();
+                renderResult(data);
+            } catch (err) {
+                renderError(err.message);
+            } finally {
+                loading.classList.add("hidden");
+                askBtn.disabled = false;
+            }
+        }
+
+        function renderResult(data) {
+            const badge = document.getElementById("confidenceBadge");
+            const isHigh = data.confidence === "high";
+            badge.textContent = isHigh ? "High confidence" : "Low confidence — verify independently";
+            badge.className = "inline-block text-xs font-semibold px-2 py-1 rounded-full mb-3 " +
+                (isHigh ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700");
+
+            document.getElementById("answerText").textContent = data.answer;
+
+            const citationsList = document.getElementById("citationsList");
+            citationsList.innerHTML = "";
+            if (data.citations.length === 0) {
+                citationsList.innerHTML = '<p class="text-sm text-slate-400 italic">No sources cited for this answer.</p>';
+            } else {
+                data.citations.forEach((c) => {
+                    const el = document.createElement("div");
+                    el.className = "bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm";
+                    el.innerHTML = `<span class="font-semibold text-slate-700">${c.source_name}</span>
+                          <p class="text-slate-500 mt-1">${c.excerpt}</p>`;
+                    citationsList.appendChild(el);
+                });
+            }
+
+            document.getElementById("disclaimerText").textContent = data.disclaimer;
+            result.classList.remove("hidden");
+        }
+
+        function renderError(message) {
+            document.getElementById("confidenceBadge").textContent = "Error";
+            document.getElementById("confidenceBadge").className =
+                "inline-block text-xs font-semibold px-2 py-1 rounded-full mb-3 bg-red-100 text-red-700";
+            document.getElementById("answerText").textContent =
+                "Something went wrong reaching the assistant. Please try again.";
+            document.getElementById("citationsList").innerHTML = "";
+            document.getElementById("disclaimerText").textContent = "";
+            result.classList.remove("hidden");
+        }
+
+        askBtn.addEventListener("click", askQuestion);
+        questionInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") askQuestion();
+        });
+    </script>
+</body>
+
+</html>
