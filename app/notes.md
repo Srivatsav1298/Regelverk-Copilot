@@ -63,3 +63,25 @@ Conclusion: model capability meaningfully affects the reliability of the
 confidence-flagging and citation-grounding safety mechanisms, not just
 answer fluency. This confirms llama-3.3-70b-versatile as the correct choice
 for the production system, despite its added cost/latency relative to 8b.
+
+## Final evaluation result
+
+12/12 (100%) on the hand-built 12-question evaluation set, using the
+production model (llama-3.3-70b-versatile), run once on a fresh daily
+quota on [today's date].
+
+This result reflects a series of real fixes made during development:
+- Cross-lingual retrieval gap (English queries vs Norwegian corpus),
+  fixed via domain-constrained query translation
+- Numeric drift in generated answers vs cited source text, fixed via
+  explicit verbatim-number instruction
+- Verbatim excerpt text leaking into the answer field instead of a
+  natural-language explanation, fixed via prompt correction
+- Citation verification false negatives caused by exact-match string
+  comparison on truncated source names, fixed via prefix matching
+- Two eval-set expectations that were themselves incorrect (a mislabeled
+  provision title, an underestimated scope for one provision), caught by
+  inspecting full model output rather than trusting pass/fail labels alone
+
+See model-comparison notes above for why llama-3.3-70b-versatile was
+selected over the smaller llama-3.1-8b-instant despite added cost/latency.
