@@ -1,20 +1,16 @@
 import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-# pyrefly: ignore [missing-import]
-from sentence_transformers import SentenceTransformer
+from app.embeddings import get_embedding
 from app.db import get_connection
 from app.llm import translate_to_norwegian
 
-model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
-
-def search(query, top_k=3):
-    # Translate first — our chunks are Norwegian, so we embed a Norwegian
-    # version of the query for the closest possible same-language comparison.
+def search(query, top_k=6):
     norwegian_query = translate_to_norwegian(query)
     print(f"  (translated to: {norwegian_query})")
 
-    query_embedding = model.encode(norwegian_query).tolist()
+    query_embedding = get_embedding(norwegian_query, input_type="search_query")
+
     conn = get_connection()
     cur = conn.cursor()
     cur.execute(

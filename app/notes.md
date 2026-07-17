@@ -85,3 +85,13 @@ This result reflects a series of real fixes made during development:
 
 See model-comparison notes above for why llama-3.3-70b-versatile was
 selected over the smaller llama-3.1-8b-instant despite added cost/latency.
+
+## Embedding provider migration: local model → Cohere API
+
+Switched from a locally-loaded sentence-transformers model to Cohere's
+hosted embed-multilingual-v3.0 API, originally to resolve Render free-tier
+memory limits (loading PyTorch + the model locally exceeded the 512MB cap).
+This had an unexpected additional benefit: retrieval ranking improved
+noticeably — the correct provision (§ 15-3) now returns first with a
+clearer separation from unrelated provisions than the local model achieved,
+even after the earlier cross-lingual translation fix.
