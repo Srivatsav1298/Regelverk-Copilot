@@ -1,0 +1,30 @@
+name: Evaluation Suite
+
+on:
+  workflow_dispatch:
+    inputs:
+      eval-questions:
+        description: 'Path to eval questions file (relative to repo root)'
+        required: false
+        default: 'eval/eval_questions.jsonl'
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Run evaluation suite
+      env:
+        # Ensure API keys are available as secrets
+        GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+      run: |
+        python eval/run_eval.py ${{ inputs.eval-questions }}

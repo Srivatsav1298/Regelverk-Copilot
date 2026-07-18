@@ -1,7 +1,9 @@
 import json
+import os
 import requests
 
-API_URL = "https://regelverk-copilot.onrender.com/ask"
+API_URL = os.getenv("EVAL_API_URL", "http://localhost:8000/ask")
+
 
 def load_questions(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
