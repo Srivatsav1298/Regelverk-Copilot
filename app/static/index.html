@@ -3,59 +3,173 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Regelverk Copilot</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Regelverk Copilot — Norwegian Employment Law Assistant</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                },
+            },
+        }
+    </script>
+    <style>
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes pulse-skeleton {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 0.7; }
+        }
+
+        .result-enter {
+            animation: fadeInUp 250ms ease-out forwards;
+        }
+
+        .skeleton-pulse {
+            animation: pulse-skeleton 1.8s ease-in-out infinite;
+        }
+
+        .input-focus-ring:focus {
+            box-shadow: 0 0 0 3px rgba(51, 65, 85, 0.15);
+        }
+
+        .quote-border {
+            border-left: 3px solid #cbd5e1;
+        }
+
+        .quote-border:hover {
+            border-left-color: #94a3b8;
+        }
+    </style>
 </head>
 
-<body class="bg-slate-50 min-h-screen">
-    <div class="max-w-2xl mx-auto py-10 px-4">
-        <h1 class="text-2xl font-bold text-slate-800">Regelverk Copilot</h1>
-        <p class="text-slate-500 mb-2">
-            Ask a question about Norwegian termination-of-employment law
-            (Arbeidsmiljøloven, Chapter 15). Not legal advice.
-        </p>
-        <p class="text-xs text-slate-400 mb-6 bg-slate-100 rounded-lg px-3 py-2">
-            Currently covers: notice periods, probation, protection during sickness/pregnancy,
-            unfair dismissal grounds, and summary dismissal. Other employment law topics are
-            outside this assistant's current scope.
-        </p>
+<body class="bg-stone-50 min-h-screen font-sans text-slate-800 antialiased">
 
-        <div class="flex flex-col sm:flex-row gap-2 mb-2">
-            <input id="question" type="text" placeholder="e.g. What is the notice period for an employee?"
-                class="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400" />
-            <button id="askBtn" class="bg-slate-800 text-white px-5 py-2 rounded-lg hover:bg-slate-700 w-full sm:w-auto">
-                Ask
-            </button>
-        </div>
-        <p id="charCount" class="text-xs text-slate-400 mb-2 text-right">0 / 500</p>
+    <!-- Main content area -->
+    <main class="min-h-screen flex flex-col">
+        <div class="flex-1 w-full max-w-3xl mx-auto px-5 sm:px-8 pt-12 sm:pt-16 md:pt-20 pb-8">
 
-        <div class="flex flex-wrap gap-2 mb-6">
-            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="What is the notice period if I want to terminate an employee?">Notice periods</button>
-            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="Can I fire someone who is on sick leave?">Sick leave protection</button>
-            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="What happens if I dismiss an employee during their probation period?">Probation period</button>
-            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="Can I terminate a pregnant employee?">Pregnancy protection</button>
-        </div>
+            <!-- Header -->
+            <header class="mb-10 sm:mb-12">
+                <div class="flex items-center gap-3 mb-4">
+                    <svg class="w-8 h-8 text-slate-700 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+                    </svg>
+                    <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Regelverk Copilot</h1>
+                </div>
+                <p class="text-base sm:text-lg text-slate-500 leading-relaxed max-w-xl">
+                    Ask a question about Norwegian termination-of-employment law
+                    (Arbeidsmilj&oslash;loven, Chapter&nbsp;15).
+                </p>
+                <div class="mt-4 inline-flex items-start gap-2 bg-stone-100 border border-stone-200 rounded-lg px-3.5 py-2.5">
+                    <svg class="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
+                    </svg>
+                    <p class="text-xs text-slate-500 leading-relaxed">
+                        Currently covers: notice periods, probation, protection during sickness/pregnancy,
+                        unfair dismissal grounds, and summary dismissal. Not legal advice.
+                    </p>
+                </div>
+            </header>
 
-        <div id="loading" class="hidden text-slate-400 mb-4">Thinking...</div>
+            <!-- Input area -->
+            <section aria-labelledby="ask-label" class="mb-8">
+                <label id="ask-label" for="question" class="sr-only">Ask a question about Norwegian employment law</label>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input id="question" type="text"
+                        placeholder="e.g. What is the notice period for an employee?"
+                        maxlength="500"
+                        class="input-focus-ring flex-1 bg-white border border-slate-300 rounded-lg px-4 py-3 text-base text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-slate-400 transition-colors duration-150" />
+                    <button id="askBtn"
+                        class="inline-flex items-center justify-center gap-2 bg-slate-800 text-white font-medium px-6 py-3 rounded-lg hover:bg-slate-700 active:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 transition-colors duration-150 w-full sm:w-auto text-base">
+                        <svg class="w-4 h-4 hidden" id="btnSpinner" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                            <path d="M12 3v3m6.36-.64l-2.12 2.12M21 12h-3M17.64 17.64l-2.12-2.12M12 21v-3M6.36 17.64l2.12-2.12M3 12h3M6.36 6.36l2.12 2.12" stroke-linecap="round"/>
+                        </svg>
+                        <span id="btnLabel">Ask</span>
+                    </button>
+                </div>
+                <p id="charCount" class="text-xs text-slate-400 mt-2 text-right tabular-nums">0 / 500</p>
+            </section>
 
-        <div id="result" class="hidden bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
-            <div id="confidenceBadge" class="inline-block text-xs font-semibold px-2 py-1 rounded-full mb-3"></div>
-            <p id="answerText" class="text-slate-800 mb-4"></p>
+            <!-- Example questions -->
+            <section aria-labelledby="examples-label" class="mb-10">
+                <p id="examples-label" class="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">Common questions</p>
+                <div class="flex flex-wrap gap-2">
+                    <button class="example-question text-sm text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-lg transition-all duration-150" data-question="What is the notice period if I want to terminate an employee?">Notice periods</button>
+                    <button class="example-question text-sm text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-lg transition-all duration-150" data-question="Can I fire someone who is on sick leave?">Sick leave protection</button>
+                    <button class="example-question text-sm text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-lg transition-all duration-150" data-question="What happens if I dismiss an employee during their probation period?">Probation period</button>
+                    <button class="example-question text-sm text-slate-600 bg-white border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-lg transition-all duration-150" data-question="Can I terminate a pregnant employee?">Pregnancy protection</button>
+                </div>
+            </section>
 
-            <div id="citationsBlock">
-                <p class="text-sm font-semibold text-slate-500 mb-2">Sources</p>
-                <div id="citationsList" class="space-y-2"></div>
+            <!-- Loading state -->
+            <div id="loading" class="hidden mb-8" aria-live="polite">
+                <div class="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="skeleton-pulse w-5 h-5 rounded-full bg-slate-200"></div>
+                        <span class="text-sm text-slate-500 font-medium">Checking Arbeidsmilj&oslash;loven&hellip;</span>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="skeleton-pulse h-4 bg-slate-100 rounded w-full"></div>
+                        <div class="skeleton-pulse h-4 bg-slate-100 rounded w-5/6"></div>
+                        <div class="skeleton-pulse h-4 bg-slate-100 rounded w-3/4"></div>
+                    </div>
+                </div>
             </div>
 
-            <p id="disclaimerText" class="text-xs text-slate-400 mt-4 border-t pt-3"></p>
+            <!-- Result card -->
+            <div id="result" class="hidden bg-white border border-slate-200 rounded-xl p-6 sm:p-8 shadow-sm mb-8 result-enter" aria-live="polite">
+                <div id="confidenceBadge" class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-4"></div>
+                <p id="answerText" class="text-slate-800 text-base sm:text-lg leading-relaxed mb-6"></p>
+
+                <div class="border-t border-slate-100 pt-5">
+                    <div id="citationsBlock">
+                        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Sources</p>
+                        <div id="citationsList" class="space-y-3"></div>
+                    </div>
+                </div>
+
+                <p id="disclaimerText" class="text-xs text-slate-400 mt-5 pt-4 border-t border-slate-100 leading-relaxed"></p>
+            </div>
+
         </div>
-    </div>
+
+        <!-- Persistent footer disclaimer -->
+        <footer class="border-t border-slate-200 bg-white/60 backdrop-blur-sm">
+            <div class="max-w-3xl mx-auto px-5 sm:px-8 py-4">
+                <p class="text-xs text-slate-400 leading-relaxed">
+                    This tool provides general information based on Arbeidsmilj&oslash;loven (Norwegian Working Environment Act) and is
+                    <strong class="font-medium text-slate-500">not legal advice</strong>.
+                    Consult a qualified professional for your specific situation.
+                </p>
+            </div>
+        </footer>
+    </main>
 
     <script>
         const askBtn = document.getElementById("askBtn");
         const questionInput = document.getElementById("question");
         const loading = document.getElementById("loading");
         const result = document.getElementById("result");
+        const btnSpinner = document.getElementById("btnSpinner");
+        const btnLabel = document.getElementById("btnLabel");
 
         document.querySelectorAll(".example-question").forEach((btn) => {
             btn.addEventListener("click", () => {
@@ -76,6 +190,8 @@
             result.classList.add("hidden");
             loading.classList.remove("hidden");
             askBtn.disabled = true;
+            btnSpinner.classList.remove("hidden");
+            btnLabel.textContent = "Searching\u2026";
 
             try {
                 const response = await fetch("/ask", {
@@ -98,15 +214,22 @@
             } finally {
                 loading.classList.add("hidden");
                 askBtn.disabled = false;
+                btnSpinner.classList.add("hidden");
+                btnLabel.textContent = "Ask";
             }
         }
 
         function renderResult(data) {
             const badge = document.getElementById("confidenceBadge");
             const isHigh = data.confidence === "high";
-            badge.textContent = isHigh ? "High confidence" : "Low confidence — verify independently";
-            badge.className = "inline-block text-xs font-semibold px-2 py-1 rounded-full mb-3 " +
-                (isHigh ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700");
+
+            if (isHigh) {
+                badge.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd"/></svg> High confidence';
+                badge.className = "inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-4 bg-emerald-50 text-emerald-700 border border-emerald-200";
+            } else {
+                badge.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg> Low confidence \u2014 verify independently';
+                badge.className = "inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-4 bg-amber-50 text-amber-700 border border-amber-200";
+            }
 
             document.getElementById("answerText").textContent = data.answer;
 
@@ -117,9 +240,12 @@
             } else {
                 data.citations.forEach((c) => {
                     const el = document.createElement("div");
-                    el.className = "bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm";
-                    el.innerHTML = `<span class="font-semibold text-slate-700">${c.source_name}</span>
-                          <p class="text-slate-500 mt-1">${c.excerpt}</p>`;
+                    el.className = "quote-border pl-4 py-2 rounded-r-lg bg-slate-50/50";
+                    el.innerHTML = `<p class="text-xs font-semibold text-slate-500 mb-1 flex items-center gap-1.5">
+                            <svg class="w-3 h-3 text-slate-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4.5 2A1.5 1.5 0 003 3.5v13A1.5 1.5 0 004.5 18h11a1.5 1.5 0 001.5-1.5V7.621a1.5 1.5 0 00-.44-1.06l-4.12-4.122A1.5 1.5 0 0011.378 2H4.5z" clip-rule="evenodd"/></svg>
+                            ${c.source_name}
+                        </p>
+                        <p class="text-sm text-slate-600 leading-relaxed">${c.excerpt}</p>`;
                     citationsList.appendChild(el);
                 });
             }
@@ -129,9 +255,9 @@
         }
 
         function renderError(message) {
-            document.getElementById("confidenceBadge").textContent = "Error";
-            document.getElementById("confidenceBadge").className =
-                "inline-block text-xs font-semibold px-2 py-1 rounded-full mb-3 bg-red-100 text-red-700";
+            const badge = document.getElementById("confidenceBadge");
+            badge.innerHTML = '<svg class="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg> Error';
+            badge.className = "inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full mb-4 bg-red-50 text-red-700 border border-red-200";
             document.getElementById("answerText").textContent =
                 "Something went wrong reaching the assistant. Please try again.";
             document.getElementById("citationsList").innerHTML = "";

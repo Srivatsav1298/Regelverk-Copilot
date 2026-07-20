@@ -10,3 +10,11 @@
 {"question": "Can I suspend an employee while investigating misconduct?", "must_contain": [], "expected_source": null}
 {"question": "Is a verbal notice of termination legally valid?", "must_contain": [], "expected_source": null}
 {"question": "What protections exist for an employee who just returned from parental leave?", "must_contain": ["protect"], "expected_source": "§ 15-9"}
+{"question": "How long do I have to give notice before firing someone?", "must_contain": ["one month"], "expected_source": "§ 15-3"}
+{"question": "Am I allowed to terminate an employee during their sick leave period?", "must_contain": ["12 months"], "expected_source": "§ 15-8"}
+{"question": "What constitutes gross misconduct that allows immediate termination?", "must_contain": ["breach"], "expected_source": "§ 15-14"}
+{"question": "What is the notice period for a 58-year-old employee with 8 years of service?", "must_contain": ["one month", "two months"], "expected_source": "§ 15-3"}
+{"question": "Can I dismiss an employee who is on parental leave if the company is downsizing?", "must_contain": ["protect"], "expected_source": "§ 15-9"}
+{"question": "What are the rules for overtime pay in Norway?", "must_contain": [], "expected_source": null}
+{"question": "How do I register a new employee with the Norwegian tax authorities?", "must_contain": [], "expected_source": null}
+{"question": "Is it legal to fire someone without a specific cause?", "must_contain": ["reason"], "expected_source": "§ 15-7"}

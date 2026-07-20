@@ -223,3 +223,76 @@ real users won't know the assistant's scope is limited to 6 provisions), a
 visible scope disclaimer, a live character counter, and distinct handling of
 the 429 rate-limit response so rate-limited users see a clear message instead
 of a generic error.
+
+---
+
+## Hybrid search (BM25 + vector) — attempted and reverted
+
+Implemented reciprocal rank fusion (RRF) combining BM25Okapi keyword search
+with the existing Cohere vector search, using k=60 as the standard RRF
+constant. BM25 index was built over all stored chunk texts, tokenized via
+simple `.lower().split()`.
+
+Eval results (12-question set, run twice for consistency):
+- Before (vector-only): 12/12 (100%) — known baseline from earlier local runs
+- After (BM25 + vector RRF): 10/12 (83%) — consistent across two runs
+
+The same 2 questions failed both times:
+1. "What counts as grounds for immediate dismissal without notice?" — missing
+   keyword 'breach', expected source § 15-14 not cited, confidence not high
+2. "What protections exist for an employee who just returned from parental
+   leave?" — confidence not high
+
+Root cause: the corpus is extremely small (~6 provisions, ~20 chunks). BM25
+over such a tiny dataset adds noise rather than signal — keyword overlap
+between similar legal provisions (e.g., § 15-7 "reason" and § 15-14 "breach"
+both use common legal phrasing) causes BM25 to boost slightly wrong chunks,
+displacing the correct one that vector search alone was already ranking first.
+The RRF fusion then amplifies this misranking.
+
+Decision: reverted. Vector-only retrieval with Cohere embeddings continues to
+outperform hybrid search on this specific corpus size. Hybrid search would
+likely help with a larger, more diverse legal corpus where exact keyword
+matching complements semantic similarity — but at 6 provisions, it hurts.
+
+---
+
+## Multi-provider LLM fallback: Gemini groundwork added
+
+Added a Gemini fallback path in `app/llm.py`: when Groq raises `RateLimitError`
+or `APIError`, the system now checks for a `GEMINI_API_KEY` environment
+variable. If present, it attempts generation via Gemini 2.0 Flash before
+falling back to the existing graceful-degradation message. If the key is absent
+or the Gemini call also fails, behavior is identical to before this change.
+
+Package: `google-genai` (Google's current recommended Python SDK, confirmed
+via pypi.org and ai.google.dev/docs). Required upgrading `groq` from 0.11.0
+to >=0.15.0 due to an httpx version conflict (groq 0.11.0 used a deprecated
+`proxies` kwarg removed in httpx 0.28+). Also relaxed `pydantic` and `httpx`
+version pins to allow google-genai's dependency resolution to succeed.
+
+This is implemented but untested against a real Gemini account/live traffic.
+Should be validated with a real key before being relied upon during an actual
+Groq outage. The fallback path is exercised only when `GEMINI_API_KEY` is set
+and Groq is unavailable — in the current default state (no Gemini key), the
+system behaves identically to before.
+
+---
+
+## Expanded evaluation set
+
+Added 8 new questions to `eval/eval_questions.jsonl`, bringing the total from
+12 to 20. The new questions include:
+- Rephrased versions of existing in-scope questions (testing consistency across
+  wording: "How long do I have to give notice before firing someone?" vs the
+  original "What is the notice period if I want to terminate an employee?")
+- Compound tenure+age question with different values than the original
+  (58 years old / 8 years vs original 56 / 12)
+- New out-of-scope topics: overtime pay rules and employee registration with
+  tax authorities (distinct from the existing minimum wage, holiday pay,
+  suspension, and verbal notice questions)
+
+Eval run result: 15/20 (75%) overall, but all 5 failures were Groq free-tier
+daily quota exhaustion — the LLM returned the graceful "usage limit" message
+instead of an actual answer. When the LLM was available, the system scored
+15/15 (100%). No retrieval failures observed on any question.

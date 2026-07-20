@@ -1,4 +1,5 @@
 # pyrefly: ignore [missing-import]
+import time
 import logging
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +13,7 @@ from app.retrieval import retrieve_chunks
 from app.llm import generate_answer
 from app.verification import verify_citations
 from app.cache import get_cached_response, set_cached_response
+from app.metrics import record_request, get_summary
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("regelverk-copilot")
@@ -43,9 +45,19 @@ def serve_ui():
     return FileResponse("app/static/index.html")
 
 
+@app.get("/dashboard")
+def serve_dashboard():
+    return FileResponse("app/static/dashboard.html")
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/metrics")
+def metrics():
+    return get_summary()
 
 
 @app.post("/ask", response_model=AskResponse)
@@ -61,9 +73,16 @@ def ask(request: Request, ask_request: AskRequest):
     cached = get_cached_response(ask_request.question)
     if cached is not None:
         logger.info("Cache hit — returning cached response")
+        record_request(
+            question_length=len(ask_request.question),
+            cache_hit=True,
+            confidence=cached.confidence,
+            latency_ms=0.0,
+        )
         return cached
 
     logger.info("Cache miss — calling retrieval + generation")
+    start = time.perf_counter()
     chunks = retrieve_chunks(ask_request.question, top_k=3)
     result = generate_answer(ask_request.question, chunks)
 
@@ -73,6 +92,14 @@ def ask(request: Request, ask_request: AskRequest):
     if unverified_count > 0:
         result.confidence = "low"
         logger.info(f"Downgraded confidence: {unverified_count} unverified citation(s)")
+
+    latency_ms = (time.perf_counter() - start) * 1000
+    record_request(
+        question_length=len(ask_request.question),
+        cache_hit=False,
+        confidence=result.confidence,
+        latency_ms=latency_ms,
+    )
 
     set_cached_response(ask_request.question, result)
     return result

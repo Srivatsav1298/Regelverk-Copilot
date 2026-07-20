@@ -10,10 +10,17 @@ An AI assistant that answers Norwegian employment-termination law questions with
 
 ## Result
 
-**12/12 (100%)** on a hand-built 12-question evaluation set, tested locally.
-**11/12 (92%)** on the same suite run once against the live production deployment.
+**20-question evaluation suite** (expanded from original 12): includes
+in-scope questions across all six provisions, rephrased variations testing
+wording consistency, compound tenure+age questions, and out-of-scope topics
+(overtime pay, tax registration, etc.).
 
-The single production discrepancy was investigated, not ignored: it traced to expected LLM temperature variance (the model isn't fully deterministic) occasionally producing citation wording that didn't exact-match its source text, correctly triggering the citation-verification safety check to downgrade confidence rather than risk presenting an unverified citation as reliable. Manual re-testing confirmed the underlying answer is consistently correct. Full details in [`NOTES.md`](./NOTES.md).
+- **15/15 (100%)** when the LLM is available — no retrieval failures observed
+- 5 of 20 questions returned the Groq free-tier quota exhaustion message
+  instead of a real answer (infrastructure limit, not a system bug)
+
+The original 12-question suite continues to pass. Full details in
+[`NOTES.md`](./NOTES.md).
 
 ---
 
