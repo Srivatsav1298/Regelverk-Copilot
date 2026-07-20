@@ -60,6 +60,29 @@ Small Norwegian businesses without in-house HR or legal staff regularly need fas
 - **Hosted embeddings over a locally-loaded model.** The original design loaded a local multilingual embedding model — this worked locally but exceeded Render's free-tier 512MB memory limit in production, causing silent OOM kills. Migrated to Cohere's hosted embeddings API, which removed PyTorch from the deployed container entirely and, as a side effect, measurably improved retrieval ranking quality.
 - **Graceful degradation over crashing.** If the LLM provider hits a rate limit, the API returns an honest low-confidence message instead of a raw 500 error — verified under an actual production rate-limit event during development, not just in theory.
 - **Numeric accuracy enforced explicitly.** An early version correctly cited source text but paraphrased a specific number incorrectly in prose. Fixed by requiring numbers to be copied verbatim from source excerpts rather than summarized.
+- **Production hardening for real users.** Per-IP rate limiting (5/min) on `/ask` to protect shared free-tier LLM/embedding quota; 500-character input cap; in-memory response cache for repeated questions; structured logging without full question text in logs.
+
+---
+
+## Production hardening for real user traffic
+
+Since this assistant runs entirely on shared free-tier infrastructure, the
+following protections were added before opening it to real (non-developer)
+users:
+
+- **Rate limiting**: 5 requests/minute per IP on `/ask`, returning a clear
+  message rather than a raw 429 error, to protect the shared daily Groq/Cohere
+  quota from being exhausted by a single user or abusive traffic.
+- **Input validation**: 500-character question limit, to prevent unnecessarily
+  expensive translation/generation calls from oversized input.
+- **In-memory response caching**: identical questions (case/whitespace-insensitive)
+  asked within the same hour are served from cache instead of re-calling the LLM,
+  reducing cost on genuinely repeated questions (a likely pattern in real usage,
+  since many small business owners ask similar things). Resets on container
+  restart — an accepted tradeoff at this scale, not a bug.
+- **Structured logging**: replaced ad hoc print statements with proper log
+  levels, without logging full user question text (only length), to avoid
+  storing potentially sensitive input in plaintext logs.
 
 ---
 

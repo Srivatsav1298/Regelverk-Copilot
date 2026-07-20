@@ -1,3 +1,8 @@
+import logging
+
+logger = logging.getLogger("regelverk-copilot")
+
+
 def verify_citations(citations: list, retrieved_chunks: list) -> list:
     """
     Checks that each cited excerpt is an actual substring of a retrieved
@@ -25,7 +30,7 @@ def verify_citations(citations: list, retrieved_chunks: list) -> list:
         verified.append({"citation": citation, "verified": is_verified})
 
         if not is_verified:
-            print(f"⚠️  UNVERIFIED CITATION: '{citation.excerpt[:80]}...' "
-                  f"source_name='{citation.source_name}'")
+            logger.warning(f"UNVERIFIED CITATION: '{citation.excerpt[:80]}...' "
+                           f"source_name='{citation.source_name}'")
 
     return verified

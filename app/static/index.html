@@ -10,17 +10,30 @@
 <body class="bg-slate-50 min-h-screen">
     <div class="max-w-2xl mx-auto py-10 px-4">
         <h1 class="text-2xl font-bold text-slate-800">Regelverk Copilot</h1>
-        <p class="text-slate-500 mb-6">
+        <p class="text-slate-500 mb-2">
             Ask a question about Norwegian termination-of-employment law
             (Arbeidsmiljøloven, Chapter 15). Not legal advice.
         </p>
+        <p class="text-xs text-slate-400 mb-6 bg-slate-100 rounded-lg px-3 py-2">
+            Currently covers: notice periods, probation, protection during sickness/pregnancy,
+            unfair dismissal grounds, and summary dismissal. Other employment law topics are
+            outside this assistant's current scope.
+        </p>
 
-        <div class="flex gap-2 mb-6">
+        <div class="flex flex-col sm:flex-row gap-2 mb-2">
             <input id="question" type="text" placeholder="e.g. What is the notice period for an employee?"
                 class="flex-1 border border-slate-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400" />
-            <button id="askBtn" class="bg-slate-800 text-white px-5 py-2 rounded-lg hover:bg-slate-700">
+            <button id="askBtn" class="bg-slate-800 text-white px-5 py-2 rounded-lg hover:bg-slate-700 w-full sm:w-auto">
                 Ask
             </button>
+        </div>
+        <p id="charCount" class="text-xs text-slate-400 mb-2 text-right">0 / 500</p>
+
+        <div class="flex flex-wrap gap-2 mb-6">
+            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="What is the notice period if I want to terminate an employee?">Notice periods</button>
+            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="Can I fire someone who is on sick leave?">Sick leave protection</button>
+            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="What happens if I dismiss an employee during their probation period?">Probation period</button>
+            <button class="example-question text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full" data-question="Can I terminate a pregnant employee?">Pregnancy protection</button>
         </div>
 
         <div id="loading" class="hidden text-slate-400 mb-4">Thinking...</div>
@@ -44,6 +57,18 @@
         const loading = document.getElementById("loading");
         const result = document.getElementById("result");
 
+        document.querySelectorAll(".example-question").forEach((btn) => {
+            btn.addEventListener("click", () => {
+                questionInput.value = btn.dataset.question;
+                document.getElementById("charCount").textContent = `${questionInput.value.length} / 500`;
+                askQuestion();
+            });
+        });
+
+        questionInput.addEventListener("input", () => {
+            document.getElementById("charCount").textContent = `${questionInput.value.length} / 500`;
+        });
+
         async function askQuestion() {
             const question = questionInput.value.trim();
             if (!question) return;
@@ -59,9 +84,12 @@
                     body: JSON.stringify({ question }),
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Server returned ${response.status}`);
+                if (response.status === 429) {
+                    const data = await response.json();
+                    renderResult(data);
+                    return;
                 }
+                if (!response.ok) throw new Error(`Server returned ${response.status}`);
 
                 const data = await response.json();
                 renderResult(data);

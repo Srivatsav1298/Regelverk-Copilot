@@ -1,10 +1,13 @@
 import os
 import json
+import logging
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 # pyrefly: ignore [missing-import]
 from groq import Groq, RateLimitError, APIError
 from app.schemas import AskResponse
+
+logger = logging.getLogger("regelverk-copilot")
 
 load_dotenv()
 
@@ -48,7 +51,7 @@ def translate_to_norwegian(query: str) -> str:
         )
         return response.choices[0].message.content.strip()
     except (RateLimitError, APIError) as e:
-        print(f"⚠️  Translation failed ({e}) — falling back to original query")
+        logger.warning(f"Translation failed ({e}) — falling back to original query")
         return query
 
 
@@ -104,7 +107,7 @@ CANDIDATE EXCERPTS:
             response_format={"type": "json_object"},
         )
     except RateLimitError:
-        print("⚠️  Groq rate limit hit — returning graceful fallback response")
+        logger.warning("Groq rate limit hit — returning graceful fallback response")
         return AskResponse(
             answer="The assistant is temporarily at its usage limit for today's "
                    "free-tier quota. Please try again in a little while.",
@@ -112,7 +115,7 @@ CANDIDATE EXCERPTS:
             confidence="low",
         )
     except APIError as e:
-        print(f"⚠️  Groq API error: {e}")
+        logger.warning(f"Groq API error: {e}")
         return AskResponse(
             answer="Something went wrong reaching the assistant. Please try again.",
             citations=[],
@@ -127,7 +130,7 @@ CANDIDATE EXCERPTS:
     except Exception as e:
         # If the model returns malformed JSON, fail safely rather than crash
         # the API or silently return garbage.
-        print(f"Failed to parse model output: {e}\nRaw output: {raw}")
+        logger.error(f"Failed to parse model output: {e}\nRaw output: {raw}")
         return AskResponse(
             answer="I wasn't able to generate a reliable answer for this question. Please try rephrasing it.",
             citations=[],
