@@ -95,3 +95,11 @@ This had an unexpected additional benefit: retrieval ranking improved
 noticeably — the correct provision (§ 15-3) now returns first with a
 clearer separation from unrelated provisions than the local model achieved,
 even after the earlier cross-lingual translation fix.
+
+---
+
+## LLM provider: migrated from Groq to OpenRouter (2026-07-20)
+
+Generation now uses OpenRouter (`google/gemma-4-26b-a4b-it:free`)
+instead of Groq directly. Same model family, single API key, OpenAI-compatible
+SDK. See root `notes.md` for full rationale.

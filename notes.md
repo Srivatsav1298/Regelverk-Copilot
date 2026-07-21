@@ -296,3 +296,26 @@ Eval run result: 15/20 (75%) overall, but all 5 failures were Groq free-tier
 daily quota exhaustion — the LLM returned the graceful "usage limit" message
 instead of an actual answer. When the LLM was available, the system scored
 15/15 (100%). No retrieval failures observed on any question.
+
+---
+
+## LLM provider migration: Groq/Gemini → OpenRouter
+
+Replaced Groq (direct API) + Gemini (fallback) with OpenRouter as the single
+LLM provider. OpenRouter is a unified API gateway (OpenAI-compatible) that
+gives access to multiple model providers through one API key. Model can be
+swapped by changing a single string — no SDK changes needed.
+
+Model: `google/gemma-4-26b-a4b-it:free` (free tier on OpenRouter).
+
+Rationale:
+- Single API key instead of managing Groq + Gemini keys separately.
+- OpenRouter's free-tier Llama 3.1 8B is the same model family we were
+  already using on Groq — no quality regression expected.
+- If the free tier proves insufficient, upgrading to a paid model
+  (e.g. Llama 3.3 70B, Claude Haiku) is a one-line model name change.
+- The `openai` Python SDK works with OpenRouter out of the box (just set
+  `base_url` to `https://openrouter.ai/api/v1`).
+
+Removed packages: `groq`, `google-genai`.
+Added package: `openai>=1.0.0`.

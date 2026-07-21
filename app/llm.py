@@ -4,80 +4,27 @@ import logging
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 # pyrefly: ignore [missing-import]
-from groq import Groq, RateLimitError, APIError
+from openai import OpenAI, RateLimitError, APIError
 from app.schemas import AskResponse
 
 logger = logging.getLogger("regelverk-copilot")
 
 load_dotenv()
 
-client = Groq(api_key=os.environ["GROQ_API_KEY"])
+_client = None
 
 
-def _gemini_generate(question: str, context_block: str) -> AskResponse | None:
-    """Attempt generation via Gemini. Returns None if GEMINI_API_KEY is not set or call fails."""
-    gemini_key = os.environ.get("GEMINI_API_KEY")
-    if not gemini_key:
-        return None
-
-    try:
-        from google import genai
-        from google.genai import types
-
-        gemini_client = genai.Client(api_key=gemini_key)
-
-        system_prompt = f"""You are a legal information assistant for Norwegian employment law.
-You are NOT a lawyer and must never claim to give legal advice.
-
-You will be given a question and several candidate excerpts from Arbeidsmiljøloven.
-Some excerpts may NOT actually be relevant — only cite the ones that genuinely
-support your answer.
-
-CRITICAL ACCURACY RULE: Specific numbers (time periods, ages, amounts) in your answer
-must match the excerpts exactly. However, you must ALWAYS write the answer as a
-natural sentence in your own words, in the question's language — never copy an
-entire excerpt sentence verbatim as the answer, even if it's the correct language.
-The "answer" field must be your own explanation; excerpts belong only in "citations".
-
-IMPORTANT: Always answer in the exact same language the user's question was asked in.
-
-Respond with ONLY valid JSON in exactly this shape, nothing else:
-{{
-  "answer": "<your answer>",
-  "citations": [{{"source_name": "<exact source name from the excerpts>", "excerpt": "<the specific supporting sentence>"}}],
-  "confidence": "high" or "low"
-}}
-
-Set confidence to "low" if the provided excerpts don't clearly and fully answer the question.
-If none of the excerpts are relevant, say so honestly in the answer and set confidence to "low"
-with an empty citations list — do NOT invent an answer not grounded in the excerpts.
-
-CANDIDATE EXCERPTS:
-{context_block}
-"""
-
-        response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[
-                types.Content(
-                    role="user",
-                    parts=[types.Part.from_text(text=question)],
-                )
-            ],
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                temperature=0.2,
-                response_mime_type="application/json",
-            ),
+def _get_client() -> OpenAI:
+    global _client
+    if _client is None:
+        api_key = os.environ.get("OPENROUTER_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENROUTER_API_KEY is not set")
+        _client = OpenAI(
+            base_url="https://openrouter.ai/api/v1",
+            api_key=api_key,
         )
-
-        raw = response.text
-        parsed = json.loads(raw)
-        return AskResponse(**parsed)
-
-    except Exception as e:
-        logger.warning(f"Gemini fallback failed: {e}")
-        return None
+    return _client
 
 
 def translate_to_norwegian(query: str) -> str:
@@ -91,8 +38,8 @@ def translate_to_norwegian(query: str) -> str:
     than crashing the whole request.
     """
     try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant",
+        response = _get_client().chat.completions.create(
+            model="google/gemma-4-26b-a4b-it:free",
             messages=[
                 {
                     "role": "system",
@@ -118,6 +65,9 @@ def translate_to_norwegian(query: str) -> str:
         return response.choices[0].message.content.strip()
     except (RateLimitError, APIError) as e:
         logger.warning(f"Translation failed ({e}) — falling back to original query")
+        return query
+    except RuntimeError as e:
+        logger.warning(f"LLM client not configured ({e}) — falling back to original query")
         return query
 
 
@@ -163,8 +113,8 @@ CANDIDATE EXCERPTS:
 """
 
     try:
-        response = client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
+        response = _get_client().chat.completions.create(
+            model="google/gemma-4-26b-a4b-it:free",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question},
@@ -172,24 +122,22 @@ CANDIDATE EXCERPTS:
             temperature=0.2,
             response_format={"type": "json_object"},
         )
-    except RateLimitError:
-        logger.warning("Groq rate limit hit — attempting Gemini fallback")
-        gemini_result = _gemini_generate(question, context_block)
-        if gemini_result is not None:
-            return gemini_result
-        logger.warning("Gemini fallback unavailable/failed — returning graceful fallback response")
+    except RuntimeError as e:
+        logger.warning(f"LLM client not configured ({e})")
         return AskResponse(
-            answer="The assistant is temporarily at its usage limit for today's "
-                   "free-tier quota. Please try again in a little while.",
+            answer="The assistant is not configured. Please set OPENROUTER_API_KEY.",
+            citations=[],
+            confidence="low",
+        )
+    except RateLimitError:
+        logger.warning("OpenRouter rate limit hit — returning graceful fallback response")
+        return AskResponse(
+            answer="The assistant is temporarily at its usage limit. Please try again in a little while.",
             citations=[],
             confidence="low",
         )
     except APIError as e:
-        logger.warning(f"Groq API error: {e} — attempting Gemini fallback")
-        gemini_result = _gemini_generate(question, context_block)
-        if gemini_result is not None:
-            return gemini_result
-        logger.warning("Gemini fallback unavailable/failed — returning graceful fallback response")
+        logger.warning(f"OpenRouter API error: {e}")
         return AskResponse(
             answer="Something went wrong reaching the assistant. Please try again.",
             citations=[],
