@@ -306,16 +306,82 @@ LLM provider. OpenRouter is a unified API gateway (OpenAI-compatible) that
 gives access to multiple model providers through one API key. Model can be
 swapped by changing a single string — no SDK changes needed.
 
-Model: `google/gemma-4-26b-a4b-it:free` (free tier on OpenRouter).
+Model: `nvidia/nemotron-3-super-120b-a12b:free` (free tier on OpenRouter).
+
+Initially targeted `meta-llama/llama-3.3-70b-instruct:free` (same family as
+the previously-used Groq llama-3.3-70b-versatile, documented in the model
+comparison section below as measurably safer against ungrounded answers than
+the 8B model). This model ID was not live on OpenRouter at time of migration.
+Fallback `openai/gpt-oss-120b:free` also did not exist. Used
+`nvidia/nemotron-3-super-120b-a12b:free` (120B, largest non-Ultra free
+model with confirmed availability) as the best available substitute.
 
 Rationale:
 - Single API key instead of managing Groq + Gemini keys separately.
-- OpenRouter's free-tier Llama 3.1 8B is the same model family we were
-  already using on Groq — no quality regression expected.
+- 120B params is the closest available free equivalent to the original
+  70B Groq model, preserving the grounding-safety advantage over smaller
+  free models.
 - If the free tier proves insufficient, upgrading to a paid model
-  (e.g. Llama 3.3 70B, Claude Haiku) is a one-line model name change.
+  (e.g. `meta-llama/llama-3.3-70b-instruct` at ~$0.15/1M tokens)
+  is a one-line model name change.
 - The `openai` Python SDK works with OpenRouter out of the box (just set
   `base_url` to `https://openrouter.ai/api/v1`).
 
 Removed packages: `groq`, `google-genai`.
 Added package: `openai>=1.0.0`.
+
+---
+
+## Model size affects hallucination safety
+
+To conserve daily token quota during development, generation was temporarily
+run on a smaller 8B model. This surfaced a meaningful safety difference:
+on two out-of-scope questions (employee suspension, verbal notice validity),
+the 8B model produced confident, plausible-sounding answers with citations
+that did not actually support the claim — a hallucinated-grounding failure.
+The 70B model, tested on the same two questions earlier, correctly identified
+both as out-of-scope with low confidence and no citations.
+
+Conclusion: model capability meaningfully affects the reliability of the
+confidence-flagging and citation-grounding safety mechanisms, not just answer
+fluency. This informed the choice of the largest available free model
+(120B Nemotron) over smaller alternatives.
+
+---
+
+## OpenRouter free-tier tradeoffs
+
+Model currently in use: `nvidia/nemotron-3-super-120b-a12b:free`
+
+Free-tier constraints (as of July 2026):
+- 50 requests/day cap (significantly tighter than Groq's previous 100k
+  tokens/day — roughly 25 full question+translation cycles per day)
+- 20 requests/minute rate limit
+- Free model IDs can be removed, repriced, or relocated without notice
+  (confirmed: `meta-llama/llama-3.1-8b-instruct:free` was removed from
+  OpenRouter between initial planning and execution, forcing a switch)
+- Response latency is inconsistent on the free tier (observed 27s to ~4min)
+  due to shared provider capacity
+
+Mitigation: model can be swapped by changing one string in `app/llm.py`.
+Paid models remove all the above constraints.
+
+---
+
+## Nemotron model-specific behavior (observed during eval)
+
+Two real differences from the previous Groq-hosted Llama model:
+
+1. **Null content responses**: Nemotron intermittently returns `None` for
+   `response.choices[0].message.content` (3 out of 20 eval questions).
+   This causes a JSON parse failure that crashes the request. Fixed by
+   adding an explicit None check before parsing, and a markdown-fence
+   stripping step (some models wrap JSON in ``` fences despite
+   `response_format={"type": "json_object"}`).
+
+2. **Language**: Nemotron answers in the language of the question it
+   receives — which is the *translated* Norwegian question, not the
+   original English input. So English questions get Norwegian answers.
+   This was the same behavior with Groq (the translation step converts
+   to Norwegian before generation), so it's not a regression, but worth
+   noting for future model swaps.

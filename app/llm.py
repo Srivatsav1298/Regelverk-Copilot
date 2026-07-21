@@ -39,7 +39,7 @@ def translate_to_norwegian(query: str) -> str:
     """
     try:
         response = _get_client().chat.completions.create(
-            model="google/gemma-4-26b-a4b-it:free",
+            model="nvidia/nemotron-3-super-120b-a12b:free",
             messages=[
                 {
                     "role": "system",
@@ -114,7 +114,7 @@ CANDIDATE EXCERPTS:
 
     try:
         response = _get_client().chat.completions.create(
-            model="google/gemma-4-26b-a4b-it:free",
+            model="nvidia/nemotron-3-super-120b-a12b:free",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": question},
@@ -146,8 +146,23 @@ CANDIDATE EXCERPTS:
 
     raw = response.choices[0].message.content
 
+    if raw is None:
+        logger.warning("Model returned empty content (None)")
+        return AskResponse(
+            answer="I wasn't able to generate a reliable answer for this question. Please try rephrasing it.",
+            citations=[],
+            confidence="low",
+        )
+
+    # Some models wrap JSON in markdown fences despite response_format
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.split("\n")
+        lines = [l for l in lines if not l.strip().startswith("```")]
+        cleaned = "\n".join(lines).strip()
+
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(cleaned)
         return AskResponse(**parsed)
     except Exception as e:
         # If the model returns malformed JSON, fail safely rather than crash
