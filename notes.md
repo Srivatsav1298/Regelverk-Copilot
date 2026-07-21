@@ -372,12 +372,20 @@ Paid models remove all the above constraints.
 
 Two real differences from the previous Groq-hosted Llama model:
 
-1. **Null content responses**: Nemotron intermittently returns `None` for
-   `response.choices[0].message.content` (3 out of 20 eval questions).
-   This causes a JSON parse failure that crashes the request. Fixed by
-   adding an explicit None check before parsing, and a markdown-fence
-   stripping step (some models wrap JSON in ``` fences despite
-   `response_format={"type": "json_object"}`).
+1. **Null content responses**: Nemotron has reasoning/thinking enabled by
+   default (`"reasoning": {"default_enabled": true, "default_effort": "medium"}`).
+   When reasoning is active, the model sometimes returns `None` for
+   `response.choices[0].message.content` — the reasoning tokens consume
+   the response budget before the final answer is emitted. This happened
+   on 3/20 eval questions (15%). Fixed by:
+   - Adding `extra_body={"reasoning": {"exclude": True}}` to both the
+     translation and generation API calls, which disables the thinking
+     layer entirely
+   - Adding explicit None check before JSON parsing
+   - Adding markdown-fence stripping (some models wrap JSON in ``` fences
+     despite `response_format={"type": "json_object"}`)
+   - Adding raw response logging (`response.model_dump()`) when content
+     is None, for future debugging
 
 2. **Language**: Nemotron answers in the language of the question it
    receives — which is the *translated* Norwegian question, not the

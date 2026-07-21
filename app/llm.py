@@ -61,8 +61,13 @@ def translate_to_norwegian(query: str) -> str:
                 {"role": "user", "content": query}
             ],
             temperature=0,
+            extra_body={"reasoning": {"exclude": True}},
         )
-        return response.choices[0].message.content.strip()
+        content = response.choices[0].message.content
+        if content is None:
+            logger.warning("Translation returned empty content — falling back to original query")
+            return query
+        return content.strip()
     except (RateLimitError, APIError) as e:
         logger.warning(f"Translation failed ({e}) — falling back to original query")
         return query
@@ -121,6 +126,7 @@ CANDIDATE EXCERPTS:
             ],
             temperature=0.2,
             response_format={"type": "json_object"},
+            extra_body={"reasoning": {"exclude": True}},
         )
     except RuntimeError as e:
         logger.warning(f"LLM client not configured ({e})")
@@ -147,7 +153,12 @@ CANDIDATE EXCERPTS:
     raw = response.choices[0].message.content
 
     if raw is None:
-        logger.warning("Model returned empty content (None)")
+        # Log the full raw response to understand what the model returned
+        try:
+            raw_dict = response.model_dump()
+            logger.warning(f"Model returned empty content (None). Full response: {json.dumps(raw_dict, default=str, ensure_ascii=False)}")
+        except Exception:
+            logger.warning("Model returned empty content (None). Could not serialize response.")
         return AskResponse(
             answer="I wasn't able to generate a reliable answer for this question. Please try rephrasing it.",
             citations=[],
