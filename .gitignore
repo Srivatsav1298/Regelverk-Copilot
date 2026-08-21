@@ -1,5 +1,10 @@
-venv/
-.env
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.env
+venv/
+.pnpm-store/
+frontend/node_modules/
+frontend/dist/
+frontend/tsconfig.tsbuildinfo
 .DS_Store

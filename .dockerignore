@@ -1,6 +1,11 @@
-venv/
-.env
-__pycache__/
-*.pyc
-.git/
+.git
 .gitignore
+.env
+venv
+__pycache__
+.pytest_cache
+frontend/node_modules
+frontend/dist
+.pnpm-store
+frontend/pnpm-debug.log
+*.pyc

@@ -3,10 +3,11 @@ import hashlib
 
 _cache = {}
 CACHE_TTL_SECONDS = 3600  # 1 hour
+CACHE_VERSION = "regelverk-copilot-v3"
 
 
 def _make_key(question: str) -> str:
-    normalized = question.strip().lower()
+    normalized = f"{CACHE_VERSION}:{question.strip().lower()}"
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 

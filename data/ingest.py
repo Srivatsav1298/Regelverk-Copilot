@@ -5,14 +5,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 # pyrefly: ignore [missing-import]
 from dotenv import load_dotenv
 # pyrefly: ignore [missing-import]
-from sentence_transformers import SentenceTransformer
 from app.db import get_connection
 from chunk import parse_raw_file
 from app.embeddings import get_embedding
 
 load_dotenv()
-
-MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"   # multilingual, 384-dim, free, local
 
 def create_table():
     conn = get_connection()
@@ -30,6 +27,8 @@ def create_table():
     conn.close()
     print("Table ready.")
 
+from app.embeddings import get_embedding
+
 def ingest(filepath):
     print(f"Parsing {filepath}...")
     chunks = parse_raw_file(filepath)
@@ -41,7 +40,7 @@ def ingest(filepath):
 
     for i, chunk in enumerate(chunks):
         embedding_input = f"{chunk['source_name']}: {chunk['chunk_text']}"
-        embedding = get_embedding(embedding_input)   # now via API, not local model
+        embedding = get_embedding(embedding_input, input_type="search_document")
         cur.execute(
             "INSERT INTO document_chunks (source_name, chunk_text, embedding) VALUES (%s, %s, %s)",
             (chunk["source_name"], chunk["chunk_text"], embedding),

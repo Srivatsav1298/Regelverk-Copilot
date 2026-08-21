@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-co = cohere.Client(os.environ["COHERE_API_KEY"])
+co = None
 
 
 def get_embedding(text: str, input_type: str = "search_document") -> list:
@@ -20,6 +20,12 @@ def get_embedding(text: str, input_type: str = "search_document") -> list:
     uses this to optimize the embedding for each role, which slightly
     improves retrieval quality over treating both identically.
     """
+    global co
+    if co is None:
+        key = os.getenv("COHERE_API_KEY")
+        if not key:
+            raise RuntimeError("COHERE_API_KEY is not set")
+        co = cohere.Client(key)
     response = co.embed(
         texts=[text],
         model="embed-multilingual-v3.0",

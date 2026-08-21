@@ -65,6 +65,14 @@
                     <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Low Confidence</p>
                     <p id="statLowConf" class="text-3xl font-bold text-amber-600 tabular-nums"></p>
                 </div>
+                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Fallback Rate</p>
+                    <p id="statFallback" class="text-3xl font-bold text-amber-600 tabular-nums"></p>
+                </div>
+                <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                    <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Citation Verification</p>
+                    <p id="statCitation" class="text-3xl font-bold text-slate-900 tabular-nums"></p>
+                </div>
             </div>
 
             <div id="emptyState" class="hidden bg-white border border-slate-200 rounded-xl p-8 shadow-sm text-center">
@@ -97,6 +105,8 @@
                 document.getElementById("statLatency").textContent = data.avg_latency_ms + " ms";
                 document.getElementById("statHighConf").textContent = data.high_confidence_pct + "%";
                 document.getElementById("statLowConf").textContent = data.low_confidence_pct + "%";
+                document.getElementById("statFallback").textContent = (data.fallback_rate_pct || 0) + "%";
+                document.getElementById("statCitation").textContent = (data.citation_verification_rate_pct || 0) + "%";
                 document.getElementById("stats").classList.remove("hidden");
             } catch (e) {
                 document.getElementById("loading").innerHTML =

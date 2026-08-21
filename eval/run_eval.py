@@ -1,6 +1,8 @@
 import json
 import os
 import requests
+from collections import Counter
+import sys
 
 API_URL = os.getenv("EVAL_API_URL", "http://localhost:8000/ask")
 
@@ -57,6 +59,7 @@ def run_eval(filepath):
         passed, reason = check_answer(q, response_json)
         results.append({
             "question": q["question"],
+            "category": q.get("category", "general"),
             "passed": passed,
             "reason": reason,
             "full_answer": response_json["answer"],
@@ -70,6 +73,11 @@ def run_eval(filepath):
     passed_count = sum(1 for r in results if r["passed"])
     print("=" * 60)
     print(f"RESULT: {passed_count}/{total} passed ({passed_count/total*100:.0f}%)")
+    categories = Counter(r["category"] for r in results)
+    for category in categories:
+        category_results = [r for r in results if r["category"] == category]
+        category_passed = sum(r["passed"] for r in category_results)
+        print(f"  {category}: {category_passed}/{len(category_results)}")
     print("=" * 60)
 
     failed = [r for r in results if not r["passed"]]
@@ -83,4 +91,4 @@ def run_eval(filepath):
 
 
 if __name__ == "__main__":
-    run_eval("eval/eval_questions.jsonl")
+    run_eval(sys.argv[1] if len(sys.argv) > 1 else "eval/eval_questions.jsonl")

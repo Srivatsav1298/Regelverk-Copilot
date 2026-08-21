@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Regelverk Copilot — Norwegian Employment Law Assistant</title>
+    <title>Regelverk Copilot — Beslutningsstøtte for arbeidsgivere</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -68,26 +68,52 @@
 
             <!-- Header -->
             <header class="mb-10 sm:mb-12">
-                <div class="flex items-center gap-3 mb-4">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                  <div class="flex items-center gap-3">
                     <svg class="w-8 h-8 text-slate-700 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
                     </svg>
                     <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 tracking-tight">Regelverk Copilot</h1>
+                  </div>
+                  <label class="text-xs text-slate-500">Språk <select id="languageSelect" class="ml-1 border border-slate-200 rounded px-2 py-1 bg-white"><option value="nb">Bokmål</option><option value="en">English</option></select></label>
                 </div>
                 <p class="text-base sm:text-lg text-slate-500 leading-relaxed max-w-xl">
-                    Ask a question about Norwegian termination-of-employment law
-                    (Arbeidsmilj&oslash;loven, Chapter&nbsp;15).
+                    Local-first decision support for Norwegian employers: ask a question or triage a concrete personnel situation with cited sources.
                 </p>
                 <div class="mt-4 inline-flex items-start gap-2 bg-stone-100 border border-stone-200 rounded-lg px-3.5 py-2.5">
                     <svg class="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/>
                     </svg>
                     <p class="text-xs text-slate-500 leading-relaxed">
-                        Currently covers: notice periods, probation, protection during sickness/pregnancy,
-                        unfair dismissal grounds, and summary dismissal. Not legal advice.
+                        Covers Arbeidsmilj&oslash;loven Chapter 15. Answers show sources, confidence, and the checks used. Not legal advice.
                     </p>
                 </div>
             </header>
+
+            <section class="mb-8 bg-slate-900 text-white rounded-xl p-5 sm:p-6" aria-labelledby="case-heading">
+                <div class="flex items-start justify-between gap-4 mb-4">
+                    <div><p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Practical workflow</p>
+                    <h2 id="case-heading" class="text-xl font-semibold mt-1">Triage a personnel situation</h2></div>
+                    <span class="text-xs bg-slate-700 px-2 py-1 rounded">Ollama-ready</span>
+                </div>
+                <textarea id="caseSituation" rows="3" maxlength="1200" placeholder="Describe what happened, for example: An employee with 8 years' service is on sick leave and we are considering downsizing." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-3 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-slate-400"></textarea>
+                <div class="flex flex-col sm:flex-row gap-3 mt-3">
+                    <input id="caseAge" type="number" min="0" max="120" placeholder="Employee age (optional)" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-slate-400" />
+                    <input id="caseYears" type="number" min="0" step="0.5" placeholder="Years employed (optional)" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-slate-400" />
+                    <button id="assessBtn" class="bg-white text-slate-900 font-medium px-4 py-2 rounded-lg hover:bg-slate-100">Assess situation</button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <input id="caseReason" type="text" maxlength="500" placeholder="Termination reason (required)" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder:text-slate-400 focus:outline-none focus:border-slate-400" />
+                    <input id="caseNoticeDate" type="date" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-slate-400" />
+                </div>
+                <div class="flex flex-wrap gap-4 mt-3 text-xs text-slate-300">
+                    <label><input id="caseSick" type="checkbox" class="mr-1"> Sykefravær</label>
+                    <label><input id="caseLeave" type="checkbox" class="mr-1"> Graviditet/permisjon</label>
+                    <label><input id="caseProbation" type="checkbox" class="mr-1"> Prøvetid</label>
+                    <label><input id="caseImmediate" type="checkbox" class="mr-1"> Avskjed vurderes</label>
+                </div>
+                <div id="assessmentResult" class="hidden mt-4 bg-slate-800 rounded-lg p-4 text-sm"></div>
+            </section>
 
             <!-- Input area -->
             <section aria-labelledby="ask-label" class="mb-8">
@@ -170,6 +196,24 @@
         const result = document.getElementById("result");
         const btnSpinner = document.getElementById("btnSpinner");
         const btnLabel = document.getElementById("btnLabel");
+        let lastAssessment = null;
+
+        document.getElementById("assessBtn").addEventListener("click", async () => {
+            const situation = document.getElementById("caseSituation").value.trim();
+            if (!situation) return;
+            const box = document.getElementById("assessmentResult");
+            box.classList.remove("hidden");
+            box.textContent = "Vurderer kilder og neste steg…";
+            try {
+                const casePayload = {situation, termination_reason: document.getElementById("caseReason").value.trim(), employee_age: Number(document.getElementById("caseAge").value) || null, years_employed: Number(document.getElementById("caseYears").value) || null, on_sick_leave: document.getElementById("caseSick").checked, pregnant_or_parental_leave: document.getElementById("caseLeave").checked, in_probation: document.getElementById("caseProbation").checked, immediate_dismissal: document.getElementById("caseImmediate").checked, notice_date: document.getElementById("caseNoticeDate").value || null, language: document.getElementById("languageSelect").value};
+                const resp = await fetch("/assess", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(casePayload)});
+                const data = await resp.json();
+                lastAssessment = {case: casePayload, assessment: data};
+                const missing = (data.questions_to_confirm || []).map(item => `<li>${item}</li>`).join("");
+                box.innerHTML = `<p class="font-semibold text-white mb-2">${data.risk_level.toUpperCase()} RISK · ${data.confidence} confidence</p><p class="text-slate-200 mb-3">${data.summary}</p><p class="font-semibold text-slate-300 mb-1">Next steps</p><ul class="list-disc pl-5 text-slate-300 space-y-1">${data.next_steps.map(step => `<li>${step}</li>`).join("")}</ul><p class="font-semibold text-slate-300 mt-3 mb-1">Clarify before acting</p><ul class="list-disc pl-5 text-slate-300 space-y-1">${missing || '<li>Ingen ekstra spørsmål.</li>'}</ul><button id="briefBtn" class="mt-4 bg-white text-slate-900 px-3 py-2 rounded font-medium">Print decision brief</button><p class="text-xs text-slate-400 mt-3">${data.citations.length} verified source candidate(s). ${data.disclaimer}</p>`;
+                document.getElementById("briefBtn").addEventListener("click", async () => { const response = await fetch("/brief", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(lastAssessment)}); const html = await response.text(); const win = window.open(); win.document.write(html); win.document.close(); win.focus(); win.print(); });
+            } catch (_) { box.textContent = "Kunne ikke vurdere saken akkurat nå. Prøv igjen eller kontakt en kvalifisert rådgiver."; }
+        });
 
         document.querySelectorAll(".example-question").forEach((btn) => {
             btn.addEventListener("click", () => {
@@ -197,7 +241,7 @@
                 const response = await fetch("/ask", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ question }),
+                    body: JSON.stringify({ question, language: document.getElementById("languageSelect").value }),
                 });
 
                 if (response.status === 429) {
@@ -236,7 +280,7 @@
             const citationsList = document.getElementById("citationsList");
             citationsList.innerHTML = "";
             if (data.citations.length === 0) {
-                citationsList.innerHTML = '<p class="text-sm text-slate-400 italic">No sources cited for this answer.</p>';
+                citationsList.innerHTML = '<p class="text-sm text-slate-400 italic">Ingen verifiserte kilder for dette spørsmålet i støttet korpus.</p>';
             } else {
                 data.citations.forEach((c) => {
                     const el = document.createElement("div");
@@ -250,7 +294,8 @@
                 });
             }
 
-            document.getElementById("disclaimerText").textContent = data.disclaimer;
+            const freshness = data.corpus ? ` Korpus: ${data.corpus.corpus_version}${data.corpus.freshness_warning ? " (ferskhet må kontrolleres)" : ""}.` : "";
+            document.getElementById("disclaimerText").textContent = data.disclaimer + freshness;
             result.classList.remove("hidden");
         }
 

@@ -4,6 +4,53 @@ An AI assistant that answers Norwegian employment-termination law questions with
 
 🔗 **Live demo**: https://regelverk-copilot.onrender.com
 
+## Production Norwegian employment hub
+
+Regelverk Copilot is a guest-first employment information and decision-support product for Norwegian employers and employees. It is designed around guided workflows, verified sources, and safe escalation—not generic chat:
+
+- **Ollama runtime**: model/provider selection is configuration-driven (`LLM_PROVIDER`, `OLLAMA_MODEL`); OpenRouter remains an optional hosted adapter.
+- **Agentic building blocks**: explicit `classify_intent`, `retrieve_legal_sources`, `extract_case_signals`, and `verify_citations` tools compose into `/ask` and `/assess` workflows.
+- **MCP-ready contracts**: `/tools` publishes a transport-neutral tool manifest, so these building blocks can be exposed through an MCP server without coupling business logic to a framework.
+- **Useful end-user workflow**: employers can triage a concrete situation and receive risk level, practical next steps, missing facts, confidence, and verified citations.
+- **Decision support, not generic chat**: the deterministic safety layer calculates notice periods, detects protected situations, flags missing facts, and blocks action when review is required.
+- **Print-ready decision brief**: `/brief` produces an ephemeral HTML report that separates employer-provided facts, retrieved rules, AI interpretation, and review items.
+- **Freshness-aware grounding**: `/sources` and `/ready` expose corpus version, source reference, ingestion date, and stale-source warnings.
+- **Production controls**: graceful model failure, local lexical retrieval fallback, caching, rate limits, readiness endpoint, provider/tool metrics, and citation gates.
+- **Evaluations**: the existing 20-question suite tests factual keywords, scope refusal, citation source, and confidence; the same API can be run against Ollama locally.
+- **Guest-first privacy**: no account is required; assessment drafts live in browser storage and can be deleted or printed without server persistence.
+- **Production frontend**: React + TypeScript + Vite builds into the same free-friendly FastAPI container.
+
+### Local Ollama quick start
+
+```bash
+ollama pull llama3.2:latest
+cp .env.example .env
+uvicorn app.main:app --reload
+```
+
+Open `http://localhost:8000`, or inspect `/ready`, `/sources`, `/tools`, and `/metrics`. Set `include_trace: true` on `/ask` when demonstrating the transparent tool trace in an interview.
+
+### Production build
+
+```bash
+docker build -t regelverk-copilot .
+docker run --rm -p 7860:7860 --env-file .env regelverk-copilot
+```
+
+The container builds the React frontend and serves it from FastAPI. Versioned endpoints are available under `/api/v1`; legacy endpoints remain available for compatibility. Free hosting limitations include cold starts, limited request volume, ephemeral metrics, and no uptime guarantee.
+
+The source registry at `/api/v1/sources` exposes domain coverage and freshness. The initial verified corpus covers termination, sickness protection, and pregnancy/parental-leave protection; contracts, working time, holidays, pay, HSE, and disputes are explicitly marked planned until their official sources and evaluation suites are curated.
+
+### Main API workflow
+
+```text
+POST /assess  →  deterministic checks + retrieval + Ollama explanation
+POST /brief   →  print-ready HTML, no persistence
+POST /feedback → anonymous helpfulness/category only
+```
+
+The default corpus is intentionally marked with a freshness warning until it is reviewed against the current official source. This prevents a polished answer from being mistaken for current legal advice.
+
 > Note: this runs on free-tier hosting and may take 30–60 seconds to wake up if it hasn't been used recently. Once warm, responses are fast.
 
 ---
@@ -20,7 +67,7 @@ wording consistency, compound tenure+age questions, and out-of-scope topics
   instead of a real answer (infrastructure limit, not a system bug)
 
 The original 12-question suite continues to pass. Full details in
-[`NOTES.md`](./NOTES.md).
+[`notes.md`](./notes.md).
 
 ---
 
@@ -95,7 +142,7 @@ users:
 
 ## Known limitations
 
-Full, honest log in [`NOTES.md`](./NOTES.md), including:
+Full, honest log in [`notes.md`](./notes.md), including:
 - A documented model comparison showing the smaller model produced confidently *ungrounded* answers on out-of-scope questions — a real finding that shaped the final production model choice. See `NOTES.md`.
 - Cross-lingual retrieval ranking isn't always perfect for English queries (mitigated by retrieving top-3 candidates and letting the generation step reason over all of them, citing only what genuinely supports the answer).
 - Free-tier hosting (Render) may cold-start after inactivity.
