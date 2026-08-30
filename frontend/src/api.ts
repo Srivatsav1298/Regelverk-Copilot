@@ -1,4 +1,4 @@
-import type { Answer, Assessment, CaseInput, Language, Audience } from "./types";
+import type { Answer, Assessment, CaseInput, Language, Audience, Topic, Workflow } from "./types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -18,3 +18,6 @@ export async function brief(input: CaseInput, assessment: Assessment) {
   if (!response.ok) throw new Error(`Brief failed (${response.status})`);
   return response.text();
 }
+
+export const getTopics = () => request<{ topics: Topic[]; workflows: Workflow[] }>("/api/v1/topics");
+export const sendCorrection = (payload: { helpful?: boolean; category?: string; message?: string }) => request("/api/v1/corrections", { method: "POST", body: JSON.stringify(payload) });

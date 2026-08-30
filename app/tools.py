@@ -26,8 +26,8 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {"case": {"type": "object"}}, "required": ["case"]},
     },
     {
-        "name": "classify_termination_intent",
-        "description": "Classify a question into a supported Norwegian employment-law topic.",
+        "name": "classify_employment_question",
+        "description": "Classify a question into an employment-law domain and reviewed coverage status.",
         "input_schema": {"type": "object", "properties": {"question": {"type": "string"}}, "required": ["question"]},
     },
     {
@@ -37,8 +37,23 @@ TOOLS = [
     },
     {
         "name": "retrieve_legal_sources",
-        "description": "Retrieve grounded excerpts from the indexed Arbeidsmiljøloven corpus.",
+        "description": "Retrieve grounded excerpts from the indexed, versioned employment-law corpus.",
         "input_schema": {"type": "object", "properties": {"question": {"type": "string"}, "top_k": {"type": "integer"}}, "required": ["question"]},
+    },
+    {
+        "name": "identify_missing_facts",
+        "description": "Identify facts that can change the answer before a user acts.",
+        "input_schema": {"type": "object", "properties": {"case": {"type": "object"}}, "required": ["case"]},
+    },
+    {
+        "name": "calculate_employment_rule",
+        "description": "Run a supported employment-law calculator and return a review-required result.",
+        "input_schema": {"type": "object", "properties": {"rule": {"type": "string"}, "inputs": {"type": "object"}}, "required": ["rule"]},
+    },
+    {
+        "name": "check_source_freshness",
+        "description": "Report corpus version, review date, and freshness status.",
+        "input_schema": {"type": "object", "properties": {}},
     },
     {
         "name": "verify_citations",

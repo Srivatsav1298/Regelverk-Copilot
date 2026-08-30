@@ -39,7 +39,7 @@ docker run --rm -p 7860:7860 --env-file .env regelverk-copilot
 
 The container builds the React frontend and serves it from FastAPI. Versioned endpoints are available under `/api/v1`; legacy endpoints remain available for compatibility. Free hosting limitations include cold starts, limited request volume, ephemeral metrics, and no uptime guarantee.
 
-The source registry at `/api/v1/sources` exposes domain coverage and freshness. The initial verified corpus covers termination, sickness protection, and pregnancy/parental-leave protection; contracts, working time, holidays, pay, HSE, and disputes are explicitly marked planned until their official sources and evaluation suites are curated.
+The source registry at `/api/v1/sources` exposes domain coverage and freshness. `/api/v1/topics` exposes the searchable topic and workflow catalogue, while `/api/v1/freshness` exposes the current release state. The initial verified corpus covers termination, sickness protection, and pregnancy/parental-leave protection; contracts, working time, holidays, pay, equality, HSE, disputes, temporary work, and reporting are explicitly marked planned until their official sources and evaluation suites are curated.
 
 ### Main API workflow
 
@@ -47,6 +47,10 @@ The source registry at `/api/v1/sources` exposes domain coverage and freshness. 
 POST /assess  →  deterministic checks + retrieval + Ollama explanation
 POST /brief   →  print-ready HTML, no persistence
 POST /feedback → anonymous helpfulness/category only
+GET  /api/v1/topics → domain and guided-workflow catalogue
+GET  /api/v1/freshness → corpus freshness and release status
+POST /api/v1/calculate → review-required deterministic calculator
+POST /api/v1/corrections → anonymous correction metadata
 ```
 
 The default corpus is intentionally marked with a freshness warning until it is reviewed against the current official source. This prevents a polished answer from being mistaken for current legal advice.
@@ -187,4 +191,4 @@ python eval/run_eval.py     # runs the 12-question evaluation suite
 
 ## Disclaimer
 
-This tool provides general information based on Arbeidsmiljøloven (Norwegian Working Environment Act) and is **not legal advice**. Consult a qualified professional for your specific situation.
+This tool provides general information based on the reviewed source corpus and is **not legal advice**. A topic marked planned is not currently answerable from a reviewed corpus. Consult a qualified professional for your specific situation.

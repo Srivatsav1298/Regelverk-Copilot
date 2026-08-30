@@ -4,6 +4,9 @@ from calendar import monthrange
 from datetime import date, timedelta
 
 
+SUPPORTED_RULES = {"notice_period", "contract_check", "working_time_check", "holiday_check"}
+
+
 def calculate_notice_period(*, years_employed=None, employee_age=None, in_probation=False, notice_date=None) -> dict:
     if in_probation:
         days = 14
@@ -84,3 +87,31 @@ def build_risk(case, missing: list[str], protected: dict) -> dict:
     if missing:
         return {"level": "unknown", "reasons": ["vesentlige fakta mangler"], "review_required": True}
     return {"level": "medium", "reasons": ["sjekk saklig grunn, dokumentasjon og drøfting før beslutning"], "review_required": True}
+
+
+def check_contract_fields(fields: dict) -> dict:
+    """A completeness check, not a legal validity decision."""
+    required = ["parties", "workplace", "role", "start_date", "pay", "working_time", "holiday", "notice"]
+    missing = [name for name in required if not fields.get(name)]
+    return {"status": "incomplete" if missing else "ready_for_review", "missing_fields": missing, "review_required": True}
+
+
+def check_working_time(*, hours_per_week=None, consecutive_days=None, night_work=False) -> dict:
+    missing = []
+    if hours_per_week is None:
+        missing.append("Avtalte timer per uke")
+    if consecutive_days is None:
+        missing.append("Antall sammenhengende arbeidsdager")
+    return {"status": "unknown" if missing else "review_required", "missing": missing, "inputs": {"hours_per_week": hours_per_week, "consecutive_days": consecutive_days, "night_work": night_work}}
+
+
+def calculate_employment_rule(rule: str, inputs: dict) -> dict:
+    if rule == "notice_period":
+        return calculate_notice_period(**{k: inputs.get(k) for k in ("years_employed", "employee_age", "in_probation", "notice_date")})
+    if rule == "contract_check":
+        return check_contract_fields(inputs)
+    if rule == "working_time_check":
+        return check_working_time(**{k: inputs.get(k) for k in ("hours_per_week", "consecutive_days", "night_work")})
+    if rule == "holiday_check":
+        return {"status": "needs_source_review", "reason": "Ferie og feriepenger krever en publisert, kontrollert kildeversjon."}
+    return {"status": "unsupported", "reason": f"Ukjent regel: {rule}"}

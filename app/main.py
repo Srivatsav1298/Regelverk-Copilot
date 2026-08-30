@@ -11,14 +11,15 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from app.schemas import AskRequest, AskResponse, CaseAssessmentRequest, CaseAssessmentResponse, BriefRequest, FeedbackRequest
+from app.schemas import AskRequest, AskResponse, CaseAssessmentRequest, CaseAssessmentResponse, BriefRequest, FeedbackRequest, CalculationRequest, CorrectionRequest
 from app.agent import run_retrieval_workflow, extract_case_signals, run_case_tools
 from app.llm import generate_answer, generate_case_assessment, provider_name
 from app.tools import tool_manifest
 from app.verification import verify_citations
 from app.cache import get_cached_response, set_cached_response
 from app.metrics import record_request, get_summary
-from app.source_manifest import corpus_metadata
+from app.source_manifest import corpus_metadata, topic_catalog, freshness_report, WORKFLOWS
+from app.decision_tools import calculate_employment_rule
 from app.brief import render_decision_brief
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -96,6 +97,16 @@ def sources():
     return corpus_metadata()
 
 
+@app.get("/topics")
+def topics():
+    return {"topics": topic_catalog(), "workflows": WORKFLOWS, "language": ["nb", "en"]}
+
+
+@app.get("/freshness")
+def freshness():
+    return freshness_report()
+
+
 @app.get("/tools")
 def tools_manifest():
     """MCP-shaped discovery endpoint for integrations and interview demos."""
@@ -137,8 +148,26 @@ def ask(request: Request, ask_request: AskRequest):
     logger.info("Cache miss — calling retrieval + generation")
     start = time.perf_counter()
     chunks, workflow = run_retrieval_workflow(ask_request.question, top_k=4)
+    intent = workflow["intent"]
+    coverage = intent.get("coverage", {})
+    if coverage.get("status") == "planned" or intent.get("domain") == "unknown":
+        result = AskResponse(
+            answer="I can’t safely answer this from the reviewed employment-law sources currently available. Choose a supported topic or consult a qualified adviser for this question." if ask_request.language == "en" else "Jeg kan ikke svare trygt på dette med de kvalitetssikrede arbeidsrettskildene som er tilgjengelige nå. Velg et støttet tema eller kontakt en kvalifisert rådgiver.",
+            citations=[], confidence="low", domain=intent.get("domain"), subtopic=intent.get("intent"),
+            escalation_level="review", escalation_reasons=["topic_not_in_reviewed_corpus"],
+            clarifying_questions=["Hvilket konkret land, arbeidsforhold eller regelverk gjelder?"]
+        )
+        result.corpus = corpus_metadata()
+        record_request(question_length=len(ask_request.question), cache_hit=False, confidence="low", latency_ms=(time.perf_counter()-start)*1000, provider=provider_name(), metadata={"unsupported": True}, tools=workflow["tools"])
+        return result
     result = generate_answer(ask_request.question, chunks, language=ask_request.language, audience=ask_request.audience)
     result.corpus = corpus_metadata()
+    for citation in result.citations:
+        citation.url = citation.url or result.corpus["source_url"]
+        citation.source_status = citation.source_status or "supported"
+    result.domain = intent.get("domain")
+    result.subtopic = intent.get("intent")
+    result.related_topics = [item["domain"] for item in topic_catalog() if item["domain"] != result.domain][:3]
 
     verification_results = verify_citations(result.citations, chunks)
     unverified_count = sum(1 for v in verification_results if not v["verified"])
@@ -179,6 +208,9 @@ def assess(request: Request, case: CaseAssessmentRequest):
     query = f"{case.situation} {case.termination_reason} age {case.employee_age or ''} years employed {case.years_employed or ''}"
     chunks, workflow = run_retrieval_workflow(query, top_k=4)
     result = generate_case_assessment(case, chunks, deterministic=deterministic)
+    for citation in result.citations:
+        citation.url = citation.url or corpus_metadata()["source_url"]
+        citation.source_status = citation.source_status or "supported"
     checks = verify_citations(result.citations, chunks)
     if any(not item["verified"] for item in checks):
         result.confidence = "low"
@@ -204,6 +236,19 @@ def feedback(request: FeedbackRequest):
     return {"accepted": True, "stored_fields": ["helpful", "category"]}
 
 
+@app.post("/calculate")
+def calculate(payload: CalculationRequest):
+    result = calculate_employment_rule(payload.rule, payload.inputs)
+    return {"rule": payload.rule, "result": result, "source_version": corpus_metadata()["corpus_version"], "review_required": True}
+
+
+@app.post("/corrections")
+def corrections(payload: CorrectionRequest):
+    # Store no case text by default; operational logging contains only metadata.
+    logger.info("Anonymous correction received: category=%s message_length=%s", payload.category, len(payload.message))
+    return {"accepted": True, "stored_fields": ["helpful", "category", "message_length", "source_version"]}
+
+
 # Versioned API aliases. Legacy routes above remain supported for existing demos.
 api_router = APIRouter(prefix="/api/v1")
 
@@ -226,6 +271,26 @@ def api_brief(payload: BriefRequest):
 @api_router.get("/sources")
 def api_sources():
     return sources()
+
+
+@api_router.get("/topics")
+def api_topics():
+    return topics()
+
+
+@api_router.get("/freshness")
+def api_freshness():
+    return freshness()
+
+
+@api_router.post("/calculate")
+def api_calculate(payload: CalculationRequest):
+    return calculate(payload)
+
+
+@api_router.post("/corrections")
+def api_corrections(payload: CorrectionRequest):
+    return corrections(payload)
 
 
 @api_router.get("/health")

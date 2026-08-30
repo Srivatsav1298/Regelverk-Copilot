@@ -6,6 +6,7 @@ the workflow easy to replace with MCP servers later while remaining local-first.
 import re
 from app.retrieval import retrieve_chunks, get_local_source
 from app.decision_tools import calculate_notice_period, check_missing_information, detect_protected_situation, build_risk
+from app.source_manifest import DOMAIN_CATALOG
 
 
 def classify_intent(question: str) -> dict:
@@ -19,7 +20,20 @@ def classify_intent(question: str) -> dict:
         "justification": ["valid reason", "cause", "saklig", "reason to terminate"],
     }
     matches = [name for name, terms in topics.items() if any(term in q for term in terms)]
-    return {"intent": matches[0] if matches else "unknown", "scope": bool(matches)}
+    domain_terms = {
+        "contracts": ("contract", "arbeidsavtale", "hiring", "ansett", "onboarding"),
+        "working_time": ("overtime", "arbeidstid", "turnus", "shift", "rest period"),
+        "holidays": ("holiday", "ferie", "holiday pay", "feriepenger"),
+        "pay": ("salary", "wage", "lønn", "minstelønn", "deduction"),
+        "equality": ("discrimination", "diskriminering", "equality", "likestilling"),
+        "hse": ("hse", "hms", "work environment", "arbeidsmiljø", "safety"),
+        "disputes": ("conflict", "dispute", "uenighet", "dokument", "whistleblow"),
+        "temporary_work": ("temporary", "midlertidig", "staffing", "innleie"),
+        "reporting": ("tax authority", "a-melding", "report", "rapportering"),
+    }
+    domain = "termination" if matches else next((d for d, terms in domain_terms.items() if any(t in q for t in terms)), "unknown")
+    catalog = next((item for item in DOMAIN_CATALOG if item["domain"] == domain), None)
+    return {"intent": matches[0] if matches else "unknown", "domain": domain, "scope": bool(matches) or domain != "unknown", "coverage": catalog or {"status": "unsupported"}}
 
 
 def extract_case_signals(situation: str) -> dict:
@@ -74,4 +88,4 @@ def run_retrieval_workflow(question: str, top_k: int = 4):
         source = get_local_source(provision)
         if source:
             chunks = [source] + chunks
-    return chunks, {"tools": ["classify_termination_intent", "retrieve_legal_sources"], "intent": intent, "retrieved": len(chunks), "source_guarantee": provision or "none"}
+    return chunks, {"tools": ["classify_employment_question", "retrieve_legal_sources"], "intent": intent, "retrieved": len(chunks), "source_guarantee": provision or "none"}

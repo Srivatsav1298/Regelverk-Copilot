@@ -1,6 +1,6 @@
 # pyrefly: ignore [missing-import]
 from pydantic import BaseModel
-from typing import List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 DISCLAIMER = (
     "This is general information based on Arbeidsmiljøloven, not legal advice. "
@@ -11,6 +11,9 @@ DISCLAIMER = (
 class Citation(BaseModel):
     source_name: str   # e.g. "Arbeidsmiljøloven § 15-3 | Oppsigelsesfrister"
     excerpt: str       # the specific sentence(s) that support the answer
+    url: Optional[str] = None
+    verified: Optional[bool] = None
+    source_status: Optional[Literal["supported", "under_review", "planned"]] = None
 
 
 class AskRequest(BaseModel):
@@ -18,6 +21,8 @@ class AskRequest(BaseModel):
     language: Literal["auto", "nb", "en"] = "auto"
     audience: Literal["employer", "employee"] = "employer"
     include_trace: bool = False
+    domain: Optional[str] = None
+    as_of_date: Optional[str] = None
 
 
 class AskResponse(BaseModel):
@@ -28,6 +33,13 @@ class AskResponse(BaseModel):
     trace: Optional[dict] = None
     corpus: Optional[dict] = None
     escalation_level: Literal["none", "review", "urgent"] = "none"
+    domain: Optional[str] = None
+    subtopic: Optional[str] = None
+    applicability: List[str] = []
+    clarifying_questions: List[str] = []
+    related_topics: List[str] = []
+    calculation_results: Dict[str, Any] = {}
+    escalation_reasons: List[str] = []
 
 
 class CaseAssessmentRequest(BaseModel):
@@ -43,6 +55,8 @@ class CaseAssessmentRequest(BaseModel):
     immediate_dismissal: bool = False
     notice_date: Optional[str] = None
     language: Literal["nb", "en"] = "nb"
+    subtopic: Optional[str] = None
+    as_of_date: Optional[str] = None
 
 
 class CaseAssessmentResponse(BaseModel):
@@ -56,6 +70,26 @@ class CaseAssessmentResponse(BaseModel):
     trace: Optional[dict] = None
     corpus: Optional[dict] = None
     escalation_level: Literal["none", "review", "urgent"] = "review"
+    domain: Optional[str] = None
+    subtopic: Optional[str] = None
+    applicability: List[str] = []
+    clarifying_questions: List[str] = []
+    related_topics: List[str] = []
+    calculation_results: Dict[str, Any] = {}
+    escalation_reasons: List[str] = []
+
+
+class CalculationRequest(BaseModel):
+    rule: str
+    inputs: Dict[str, Any] = {}
+    language: Literal["nb", "en"] = "nb"
+
+
+class CorrectionRequest(BaseModel):
+    helpful: Optional[bool] = None
+    category: Optional[Literal["accuracy", "citation", "language", "scope", "other"]] = None
+    message: str = ""
+    source_version: Optional[str] = None
 
 
 class BriefRequest(BaseModel):
