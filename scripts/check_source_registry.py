@@ -1,7 +1,15 @@
 """Cheap weekly source-registry check; interpretation still requires review."""
 
 import sys
+from pathlib import Path
 import requests
+
+# Make the script runnable as `python scripts/check_source_registry.py` from
+# the repository root and from any other working directory (including CI).
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
+
 from app.source_manifest import SOURCES
 
 
