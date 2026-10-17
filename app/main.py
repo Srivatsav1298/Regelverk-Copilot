@@ -11,7 +11,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from app.schemas import AskRequest, AskResponse, CaseAssessmentRequest, CaseAssessmentResponse, BriefRequest, FeedbackRequest, CalculationRequest, CorrectionRequest
+from app.schemas import AskRequest, AskResponse, CaseAssessmentRequest, CaseAssessmentResponse, BriefRequest, FeedbackRequest, CalculationRequest, CorrectionRequest, VisitRequest
 from app.agent import run_retrieval_workflow, extract_case_signals, run_case_tools
 from app.llm import generate_answer, generate_case_assessment, provider_name
 from app.tools import tool_manifest
@@ -21,11 +21,15 @@ from app.metrics import record_request, get_summary
 from app.source_manifest import corpus_metadata, topic_catalog, freshness_report, WORKFLOWS
 from app.decision_tools import calculate_employment_rule
 from app.brief import render_decision_brief
+from app.analytics import record_daily_visit, daily_visitor_count
+from app.source_monitor import source_freshness
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("regelverk-copilot")
 
 limiter = Limiter(key_func=get_remote_address)
+RATE_LIMIT_ASK = os.getenv("RATE_LIMIT_ASK", "120/minute")
+RATE_LIMIT_ASSESS = os.getenv("RATE_LIMIT_ASSESS", "60/minute")
 app = FastAPI(title="Regelverk Copilot", version="2.0.0", docs_url="/docs", redoc_url="/redoc")
 app.state.limiter = limiter
 app.add_middleware(SlowAPIMiddleware)
@@ -104,7 +108,7 @@ def topics():
 
 @app.get("/freshness")
 def freshness():
-    return freshness_report()
+    return {**freshness_report(), "source_monitor": source_freshness()}
 
 
 @app.get("/tools")
@@ -124,7 +128,7 @@ def evals():
 
 
 @app.post("/ask", response_model=AskResponse)
-@limiter.limit("5/minute")
+@limiter.limit(RATE_LIMIT_ASK)
 def ask(request: Request, ask_request: AskRequest):
     if not ask_request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty.")
@@ -132,6 +136,17 @@ def ask(request: Request, ask_request: AskRequest):
         raise HTTPException(status_code=400, detail="Question is too long (max 500 characters).")
 
     logger.info(f"Received question (length={len(ask_request.question)} chars)")
+
+    source_status = source_freshness()
+    if source_status["status"] == "changed":
+        message = (
+            "I’m pausing verified answers because an official source changed. The source must be re-ingested and reviewed before this question can be answered as current."
+            if ask_request.language == "en" else
+            "Jeg setter kvalitetssikrede svar på pause fordi en offisiell kilde er endret. Kilden må hentes inn på nytt og kvalitetssikres før spørsmålet kan besvares som gjeldende rett."
+        )
+        result = AskResponse(answer=message, citations=[], confidence="low", escalation_level="urgent", escalation_reasons=["official_source_changed"], clarifying_questions=[])
+        result.corpus = {**corpus_metadata(), "freshness_warning": True, "source_monitor": source_status}
+        return result
 
     cached = None if ask_request.include_trace else get_cached_response(f"{ask_request.language}:{ask_request.question}")
     if cached is not None:
@@ -150,16 +165,19 @@ def ask(request: Request, ask_request: AskRequest):
     chunks, workflow = run_retrieval_workflow(ask_request.question, top_k=4)
     intent = workflow["intent"]
     coverage = intent.get("coverage", {})
-    if coverage.get("status") == "planned" or intent.get("domain") == "unknown":
+
+    # Only reject if domain is planned and no supported chunks were retrieved, or no chunks matched
+    if not chunks and (coverage.get("status") == "planned" or intent.get("domain") == "unknown"):
         result = AskResponse(
             answer="I can’t safely answer this from the reviewed employment-law sources currently available. Choose a supported topic or consult a qualified adviser for this question." if ask_request.language == "en" else "Jeg kan ikke svare trygt på dette med de kvalitetssikrede arbeidsrettskildene som er tilgjengelige nå. Velg et støttet tema eller kontakt en kvalifisert rådgiver.",
             citations=[], confidence="low", domain=intent.get("domain"), subtopic=intent.get("intent"),
             escalation_level="review", escalation_reasons=["topic_not_in_reviewed_corpus"],
-            clarifying_questions=["Hvilket konkret land, arbeidsforhold eller regelverk gjelder?"]
+            clarifying_questions=["Hvilket konkret arbeidsforhold eller regelverk gjelder?"]
         )
         result.corpus = corpus_metadata()
         record_request(question_length=len(ask_request.question), cache_hit=False, confidence="low", latency_ms=(time.perf_counter()-start)*1000, provider=provider_name(), metadata={"unsupported": True}, tools=workflow["tools"])
         return result
+
     result = generate_answer(ask_request.question, chunks, language=ask_request.language, audience=ask_request.audience)
     result.corpus = corpus_metadata()
     for citation in result.citations:
@@ -175,8 +193,6 @@ def ask(request: Request, ask_request: AskRequest):
     if unverified_count > 0:
         result.confidence = "low"
         logger.info(f"Downgraded confidence: {unverified_count} unverified citation(s)")
-    if result.corpus["freshness_warning"] and result.confidence == "high":
-        result.confidence = "low"
     result.escalation_level = "review" if result.confidence == "low" else "none"
 
     if ask_request.include_trace:
@@ -199,7 +215,7 @@ def ask(request: Request, ask_request: AskRequest):
 
 
 @app.post("/assess", response_model=CaseAssessmentResponse)
-@limiter.limit("3/minute")
+@limiter.limit(RATE_LIMIT_ASSESS)
 def assess(request: Request, case: CaseAssessmentRequest):
     if not case.situation.strip() or len(case.situation) > 1200:
         raise HTTPException(status_code=400, detail="Describe a situation between 1 and 1200 characters.")
@@ -215,8 +231,6 @@ def assess(request: Request, case: CaseAssessmentRequest):
     if any(not item["verified"] for item in checks):
         result.confidence = "low"
     result.corpus = corpus_metadata()
-    if result.corpus["freshness_warning"]:
-        result.confidence = "low"
     result.escalation_level = "urgent" if result.risk_level == "high" else "review"
     result.trace = {**workflow, "provider": provider_name(), "signals": extract_case_signals(case.situation), "deterministic": deterministic, "citation_checks": len(checks)}
     record_request(question_length=len(case.situation), cache_hit=False, confidence=result.confidence, latency_ms=(time.perf_counter() - started) * 1000, route="assess", provider=provider_name(), tools=workflow["tools"] + ["extract_case_facts", "calculate_notice_period", "detect_protected_situation", "check_missing_information", "verify_citations"], metadata={"fallback": not result.citations, "citation_checks": len(checks), "verified_citations": len(checks) - sum(1 for item in checks if not item["verified"]), "retrieved": len(chunks)})
@@ -238,7 +252,7 @@ def feedback(request: FeedbackRequest):
 
 @app.post("/calculate")
 def calculate(payload: CalculationRequest):
-    result = calculate_employment_rule(payload.rule, payload.inputs)
+    result = calculate_employment_rule(payload.rule, payload.inputs, payload.language)
     return {"rule": payload.rule, "result": result, "source_version": corpus_metadata()["corpus_version"], "review_required": True}
 
 
@@ -321,6 +335,18 @@ def api_evals():
 @api_router.post("/feedback")
 def api_feedback(payload: FeedbackRequest):
     return feedback(payload)
+
+
+@api_router.post("/visits")
+def api_record_visit(payload: VisitRequest):
+    if not 16 <= len(payload.visitor_id) <= 128:
+        raise HTTPException(status_code=400, detail="Invalid anonymous visitor identifier.")
+    return {"date": "today", "daily_visitors": record_daily_visit(payload.visitor_id), "privacy": "anonymous_daily_count"}
+
+
+@api_router.get("/visits/today")
+def api_daily_visitors():
+    return {"date": "today", "daily_visitors": daily_visitor_count(), "privacy": "anonymous_daily_count"}
 
 
 app.include_router(api_router)

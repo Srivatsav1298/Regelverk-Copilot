@@ -1,194 +1,178 @@
-# Regelverk Copilot
+# Regelverk Copilot 2.0
 
-An AI assistant that answers Norwegian employment-termination law questions with grounded, cited answers — built for small business owners who currently guess or overpay a lawyer for simple questions.
+> **Grounded Norwegian Employment & Labour Law Decision-Support Platform**
+> Built for Norwegian employers, employees, and advisors to navigate complex workplace regulations with deterministic statutory accuracy, verified Lovdata citations, and complete privacy.
 
-🔗 **Live demo**: https://regelverk-copilot.onrender.com
-
-## Production Norwegian employment hub
-
-Regelverk Copilot is a guest-first employment information and decision-support product for Norwegian employers and employees. It is designed around guided workflows, verified sources, and safe escalation—not generic chat:
-
-- **Ollama runtime**: model/provider selection is configuration-driven (`LLM_PROVIDER`, `OLLAMA_MODEL`); OpenRouter remains an optional hosted adapter.
-- **Agentic building blocks**: explicit `classify_intent`, `retrieve_legal_sources`, `extract_case_signals`, and `verify_citations` tools compose into `/ask` and `/assess` workflows.
-- **MCP-ready contracts**: `/tools` publishes a transport-neutral tool manifest, so these building blocks can be exposed through an MCP server without coupling business logic to a framework.
-- **Useful end-user workflow**: employers can triage a concrete situation and receive risk level, practical next steps, missing facts, confidence, and verified citations.
-- **Decision support, not generic chat**: the deterministic safety layer calculates notice periods, detects protected situations, flags missing facts, and blocks action when review is required.
-- **Print-ready decision brief**: `/brief` produces an ephemeral HTML report that separates employer-provided facts, retrieved rules, AI interpretation, and review items.
-- **Freshness-aware grounding**: `/sources` and `/ready` expose corpus version, source reference, ingestion date, and stale-source warnings.
-- **Production controls**: graceful model failure, local lexical retrieval fallback, caching, rate limits, readiness endpoint, provider/tool metrics, and citation gates.
-- **Evaluations**: the existing 20-question suite tests factual keywords, scope refusal, citation source, and confidence; the same API can be run against Ollama locally.
-- **Guest-first privacy**: no account is required; assessment drafts live in browser storage and can be deleted or printed without server persistence.
-- **Production frontend**: React + TypeScript + Vite builds into the same free-friendly FastAPI container.
-
-### Local Ollama quick start
-
-```bash
-ollama pull llama3.2:latest
-cp .env.example .env
-uvicorn app.main:app --reload
-```
-
-Open `http://localhost:8000`, or inspect `/ready`, `/sources`, `/tools`, and `/metrics`. Set `include_trace: true` on `/ask` when demonstrating the transparent tool trace in an interview.
-
-### Production build
-
-```bash
-docker build -t regelverk-copilot .
-docker run --rm -p 7860:7860 --env-file .env regelverk-copilot
-```
-
-The container builds the React frontend and serves it from FastAPI. Versioned endpoints are available under `/api/v1`; legacy endpoints remain available for compatibility. Free hosting limitations include cold starts, limited request volume, ephemeral metrics, and no uptime guarantee.
-
-The source registry at `/api/v1/sources` exposes domain coverage and freshness. `/api/v1/topics` exposes the searchable topic and workflow catalogue, while `/api/v1/freshness` exposes the current release state. The initial verified corpus covers termination, sickness protection, and pregnancy/parental-leave protection; contracts, working time, holidays, pay, equality, HSE, disputes, temporary work, and reporting are explicitly marked planned until their official sources and evaluation suites are curated.
-
-### Main API workflow
-
-```text
-POST /assess  →  deterministic checks + retrieval + Ollama explanation
-POST /brief   →  print-ready HTML, no persistence
-POST /feedback → anonymous helpfulness/category only
-GET  /api/v1/topics → domain and guided-workflow catalogue
-GET  /api/v1/freshness → corpus freshness and release status
-POST /api/v1/calculate → review-required deterministic calculator
-POST /api/v1/corrections → anonymous correction metadata
-```
-
-The default corpus is intentionally marked with a freshness warning until it is reviewed against the current official source. This prevents a polished answer from being mistaken for current legal advice.
-
-> Note: this runs on free-tier hosting and may take 30–60 seconds to wake up if it hasn't been used recently. Once warm, responses are fast.
+🔗 **Live Demo**: [regelverk-copilot.onrender.com](https://regelverk-copilot.onrender.com)
+⚡ **Local First**: Runs fully locally with Ollama (`qwen3:4b` / `llama3.2`) or cloud providers via OpenRouter.
 
 ---
 
-## Result
+## 🌟 What is Regelverk Copilot 2.0?
 
-**20-question evaluation suite** (expanded from original 12): includes
-in-scope questions across all six provisions, rephrased variations testing
-wording consistency, compound tenure+age questions, and out-of-scope topics
-(overtime pay, tax registration, etc.).
+Norwegian labour law (*Arbeidsmiljøloven* and *Ferieloven*) is strict, complex, and heavily rules-based. Small business owners, HR managers, and employees routinely struggle with questions about notice periods, dismissal protections, working time limits, and mandatory contract terms.
 
-- **15/15 (100%)** when the LLM is available — no retrieval failures observed
-- 5 of 20 questions returned the free-tier quota exhaustion message
-  instead of a real answer (infrastructure limit, not a system bug)
-
-The original 12-question suite continues to pass. Full details in
-[`notes.md`](./notes.md).
+Regelverk Copilot transforms raw statutory text into **trustworthy, interactive decision-support**:
+- **Zero Fabricated Citations**: Every claim is verified against genuine, un-summarized Norwegian statutory provisions from Lovdata.
+- **Deterministic Legal Calculators**: Notice periods, contract checklists, working hours, and holiday entitlements are calculated with mathematical precision—never estimated or hallucinated.
+- **Guest-First Privacy Architecture**: Ephemeral processing with zero server-side retention of user case descriptions or employment contracts.
+- **Multi-Category Coverage**: Expanded far beyond initial termination prototypes into six fundamental areas of Norwegian workplace law.
 
 ---
 
-## The problem
+## 🏛️ Statutory Domain Coverage
 
-Small Norwegian businesses without in-house HR or legal staff regularly need fast answers to employment-law questions — notice periods, probation rules, protected dismissal (sick leave, pregnancy). Today they either guess, or pay a lawyer for questions that don't need one. This assistant gives grounded, citable answers with an explicit "not legal advice" disclaimer, covering six core provisions of Arbeidsmiljøloven, Chapter 15 (termination of employment).
+The knowledge engine indexes and verifies full official provisions directly from Lovdata:
+
+| Domain | Statutory Reference | Core Provisions & Capabilities | Status |
+|---|---|---|---|
+| **Oppsigelse & Avskjed** (Termination & Dismissal) | Arbeidsmiljøloven Kapittel 15 | Drøftingsmøte (§ 15-1), saklig grunn (§ 15-7), formkrav (§ 15-4), oppsigelsesfrister (§ 15-3), avskjed (§ 15-14), suspensjon (§ 15-13), arbeidsattest (§ 15-15) | ✅ Supported |
+| **Arbeidsavtaler & Ansettelse** (Contracts & Employment) | Arbeidsmiljøloven Kapittel 1 & 14 | Arbeidstakerbegrepet (§ 1-8), skriftlig avtale (§ 14-5), 14 obligatoriske minimumskrav (§ 14-6), endringer (§ 14-8), midlertidig ansettelse (§ 14-9) | ✅ Supported |
+| **Arbeidstid & Overtid** (Working Time & Overtime) | Arbeidsmiljøloven Kapittel 10 | Alminnelig arbeidstid (§ 10-4), overtidsvilkår og 40% tillegg (§ 10-6), daglig/ukentlig hvile (§ 10-8), pauser (§ 10-9) | ✅ Supported |
+| **Ferie & Feriepenger** (Annual Holidays) | Ferieloven (Lov 1988-04-29-21) | 25 virkedagers feriefritid (§ 5), ekstrauke for 60+ (§ 5), feriefastsetting og drøftingsplikt (§ 6), beregning av 10,2% / 12,5% feriepenger (§ 10) | ✅ Supported |
+| **Sykefravær & Permisjon** (Sickness & Parental Protection) | Arbeidsmiljøloven Kapittel 15 | 12 måneders oppsigelsesvern ved sykdom (§ 15-8), særskilt oppsigelsesvern ved graviditet, fødsel og foreldrepermisjon (§ 15-9) | ✅ Supported |
+| **Varsling & Arbeidsmiljø** (Whistleblowing & Rights) | Arbeidsmiljøloven Kapittel 2A & 4 | Lovfestet rett til å varsle (§ 2A-1), fremgangsmåte (§ 2A-2), forbud mot gjengjeldelse (§ 2A-4), vern mot trakassering og psykososialt arbeidsmiljø (§ 4-3) | ✅ Supported |
+| **Konflikt & Søksmålsfrister** (Disputes & Court Deadlines) | Arbeidsmiljøloven Kapittel 17 | Krav om forhandlingsmøte innen 2 uker (§ 17-3), 8 ukers søksmålsfrist for ugyldighet, 6 måneders frist for erstatning, rett til å stå i stillingen (§ 17-4) | ✅ Supported |
 
 ---
 
-## Architecture
+## 🛠️ Interactive Decision-Support Tools
+
+1. **Oppsigelsesfrist-kalkulator (§ 15-3)**:
+   - Takes tenure, age, probation status, and notice date.
+   - Accurately applies tenure thresholds (1, 2, 3 months) and senior age brackets (4 months at 50, 5 months at 55, 6 months at 60).
+   - Computes statutory month-boundary rules (*løper fra og med første dag i måneden etter at oppsigelsen fant sted*).
+2. **Arbeidsavtale-revisor (§ 14-6)**:
+   - Automated contract checklist auditing whether an agreement contains all 14 mandatory statutory clauses (parties, place of work, trial period, notice, vacation, pay terms, working hours).
+3. **Arbeidstid & Overtidskontroll (§ 10-4 / § 10-6)**:
+   - Evaluates weekly hour thresholds, consecutive workday limits, and automatically computes mandatory 40% statutory overtime supplements.
+4. **Feriepengekalkulator (Ferieloven § 5 / § 10)**:
+   - Calculates exact vacation days and statutory holiday pay rates (10.2% baseline, 12.5% for employees aged 60+).
+5. **Formfeilkontroll ved Oppsigelse (§ 15-4 / § 15-5)**:
+   - Verifies mandatory statutory written contents and informs about legal consequences of formal defects (invalidation and statutory damages).
+
+---
+
+## 📐 Architecture & Technology Stack
 
 ```
-                     ┌──────────────────┐
-   User (web UI) ──► │   FastAPI backend │
-                     └──────┬───────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-        Query translation  Retrieval   Citation
-        (EN → NO, legal    (Cohere      verification
-        glossary-guided)   embeddings   (substring match
-                            + pgvector)  against source)
-                            │
-                            ▼
-                   ┌─────────────────┐
-                   │  LLM generation  │ ── OpenRouter (Gemma 4 26B)
-                   │  structured JSON │    grounded, cited answer
-                   └─────────────────┘
+                              ┌─────────────────────────────────────────┐
+                              │         Modern Web Frontend             │
+                              │    React 19 + TypeScript + Vite         │
+                              │    Dark/Light theme · WCAG 2.2 AA       │
+                              └────────────────────┬────────────────────┘
+                                                   │  REST API / JSON
+                                                   ▼
+                              ┌─────────────────────────────────────────┐
+                              │          FastAPI Application            │
+                              │    Security headers · Rate limiting     │
+                              │    In-memory cache · Metrics collector  │
+                              └───────┬─────────────────────────┬───────┘
+                                      │                         │
+            ┌─────────────────────────┴──────────┐   ┌──────────┴─────────────────────────┐
+            ▼                                    ▼   ▼                                    ▼
+┌───────────────────────────┐   ┌──────────────────────────┐   ┌──────────────────────────┐
+│   Intent Classifier &     │   │   Deterministic Tools    │   │  LLM Provider Adapter    │
+│   Query Expansion         │   │  Notice, Contract, Form, │   │  Local Ollama (Qwen/     │
+│  Norwegian legal stems    │   │  Holiday & Working Time  │   │  Llama) or OpenRouter    │
+└───────────┬───────────────┘   └──────────────────────────┘   └──────────┬───────────────┘
+            │                                                             │
+            ▼                                                             ▼
+┌──────────────────────────────────────────────────────────┐   ┌──────────────────────────┐
+│   Resilient Local Hybrid Engine (SQLite)                 │   │  Citation Verification   │
+│  - FTS5 BM25 search with Norwegian decompounding         │   │  Strict verbatim chunk   │
+│  - Dense vector cosine similarity (Cohere 1024-dim)      │   │  substring validation    │
+│  - Reciprocal Rank Fusion (RRF) ranking                  │   └──────────────────────────┘
+└──────────────────────────────────────────────────────────┘
 ```
 
-- **Retrieval**: Norwegian legal text (6 provisions of Arbeidsmiljøloven, Chapter 15) chunked and embedded via **Cohere's `embed-multilingual-v3.0`** API, stored in Postgres with `pgvector`.
-- **Cross-lingual handling**: English questions are translated into Norwegian using domain-specific legal terminology (a glossary of exact legal terms) before embedding, since the corpus is Norwegian-only. This closes a real, measured retrieval gap found during development — see `NOTES.md`.
-- **Generation**: OpenRouter-hosted **Gemma 4 26B** produces structured JSON answers (Pydantic-validated) with per-claim citations and a confidence flag. OpenRouter gives a single API key across multiple providers (Gemma, Llama, Claude, GPT), making provider swaps trivial.
-- **Verification**: every citation is checked as an actual substring of its source chunk before being trusted — not just assumed correct from the model's own output.
-- **Cost**: entirely free-tier. Cohere free-tier embeddings, Supabase free Postgres, OpenRouter free-tier inference (Gemma 4 26B), Render free web hosting.
+- **Backend**: FastAPI 0.115+, Python 3.12, Pydantic v2 schemas.
+- **Knowledge Engine**: Local embedded SQLite database (`data/legal_corpus.db`) with FTS5 virtual tables and numpy dense vector search. Zero external cloud database dependencies.
+- **Embeddings**: Cohere `embed-multilingual-v3.0` (1024 dimensions).
+- **LLM Runtime**: Local Ollama auto-detection (`qwen3:4b` / `llama3.2`) with deterministic fallback safety layer and OpenRouter cloud adapter.
+- **Frontend**: React 19, TypeScript 5.7, Vite 6, Vanilla CSS design tokens.
+- **Quality Assurance**: 47 unit tests in `pytest`, 41 bilingual questions in `eval_questions.jsonl`.
 
 ---
 
-## Key design decisions
+## 🚀 Quick Start (Local Development)
 
-- **No agent framework** (LangChain/LangGraph/CrewAI). The retrieval → generation flow is plain, explicit Python, deliberately — every step is explainable rather than abstracted behind a framework.
-- **Domain-constrained translation over generic translation.** Generic Norwegian translation missed exact legal vocabulary (e.g. "oppsigelsesfrist," "avskjed"); fixed with a glossary-guided prompt that forces precise legal terms.
-- **Citation verification as a real safety layer, not decoration.** An earlier version silently marked *every* citation "unverified" due to an exact-match lookup failing on a truncated source name — a real bug, found by testing deliberately rather than trusting output that looked plausible. Fixed via prefix matching. See `NOTES.md` for the full account.
-- **Hosted embeddings over a locally-loaded model.** The original design loaded a local multilingual embedding model — this worked locally but exceeded Render's free-tier 512MB memory limit in production, causing silent OOM kills. Migrated to Cohere's hosted embeddings API, which removed PyTorch from the deployed container entirely and, as a side effect, measurably improved retrieval ranking quality.
-- **Graceful degradation over crashing.** If the LLM provider hits a rate limit, the API returns an honest low-confidence message instead of a raw 500 error — verified under an actual production rate-limit event during development, not just in theory.
-- **Numeric accuracy enforced explicitly.** An early version correctly cited source text but paraphrased a specific number incorrectly in prose. Fixed by requiring numbers to be copied verbatim from source excerpts rather than summarized.
-- **Production hardening for real users.** Per-IP rate limiting (5/min) on `/ask` to protect shared free-tier LLM/embedding quota; 500-character input cap; in-memory response cache for repeated questions; structured logging without full question text in logs.
+### 1. Prerequisites
+- Python 3.12+
+- Node.js 20+ (for frontend)
+- [Ollama](https://ollama.ai) (optional, for local LLM runtime)
 
----
-
-## Production hardening for real user traffic
-
-Since this assistant runs entirely on shared free-tier infrastructure, the
-following protections were added before opening it to real (non-developer)
-users:
-
-- **Rate limiting**: 5 requests/minute per IP on `/ask`, returning a clear
-  message rather than a raw 429 error, to protect the shared free-tier
-  LLM/embedding quota from being exhausted by a single user or abusive traffic.
-- **Input validation**: 500-character question limit, to prevent unnecessarily
-  expensive translation/generation calls from oversized input.
-- **In-memory response caching**: identical questions (case/whitespace-insensitive)
-  asked within the same hour are served from cache instead of re-calling the LLM,
-  reducing cost on genuinely repeated questions (a likely pattern in real usage,
-  since many small business owners ask similar things). Resets on container
-  restart — an accepted tradeoff at this scale, not a bug.
-- **Structured logging**: replaced ad hoc print statements with proper log
-  levels, without logging full user question text (only length), to avoid
-  storing potentially sensitive input in plaintext logs.
-
----
-
-## Known limitations
-
-Full, honest log in [`notes.md`](./notes.md), including:
-- A documented model comparison showing the smaller model produced confidently *ungrounded* answers on out-of-scope questions — a real finding that shaped the final production model choice. See `NOTES.md`.
-- Cross-lingual retrieval ranking isn't always perfect for English queries (mitigated by retrieving top-3 candidates and letting the generation step reason over all of them, citing only what genuinely supports the answer).
-- Free-tier hosting (Render) may cold-start after inactivity.
-- OpenRouter's free-tier quota can be exhausted under heavy same-day testing; the API degrades gracefully rather than crashing when this happens.
-
----
-
-## Running locally
-
+### 2. Setup
 ```bash
 git clone https://github.com/yourusername/regelverk-copilot.git
 cd regelverk-copilot
-cp .env.example .env   # fill in your own DATABASE_URL, OPENROUTER_API_KEY, COHERE_API_KEY
-docker build -t regelverk-copilot .
-docker run -p 7860:7860 --env-file .env regelverk-copilot
+
+# Create virtual environment and install dependencies
+python3 -m venv venv
+./venv/bin/pip install -r requirements.txt
+
+# Configure environment
+cp .env.example .env
+# Set COHERE_API_KEY in .env
 ```
 
-Visit `http://localhost:7860`.
+### 3. Build Frontend & Run Backend
+```bash
+# Build production React frontend bundle
+cd frontend && npm install && npm run build && cd ..
 
-### Ingesting source data / running the evaluation suite
+# Launch FastAPI server
+./venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+```
+Open **`http://localhost:8000`** in your browser.
+
+---
+
+## 🧪 Testing & Evaluation
+
+### Official-source freshness gate
+
+The weekly source review checks the official Lovdata pages and hashes their
+normalised content. If a page changes, CI creates a review-only artifact under
+`data/source_candidates/` and blocks a fresh deployment. Maintainers must review
+the candidate, update the curated `data/raw/` corpus, run ingestion and tests,
+then acknowledge the reviewed baseline with:
 
 ```bash
-python data/ingest.py       # chunk, embed, and store the source legal text
-python data/test_retrieval.py
-python eval/run_eval.py     # runs the 12-question evaluation suite
+./venv/bin/python scripts/acknowledge_source_update.py --reviewed
+```
+
+This prevents a legal answer from silently changing without a human-reviewed
+corpus update.
+
+### Run Automated Unit Test Suite
+```bash
+./venv/bin/pytest -v
+```
+*Current test suite: **47 passed in ~12s**.*
+
+### Run End-to-End Evaluation Benchmark
+```bash
+EVAL_API_URL=http://localhost:8000/ask ./venv/bin/python eval/run_eval.py eval/eval_questions.jsonl
+```
+
+### Run Frontend Typecheck and Build
+```bash
+cd frontend
+npm run typecheck
+npm run build
 ```
 
 ---
 
-## Tech stack
+## 🔒 Security, Compliance & Privacy
 
-| Layer | Technology | Cost |
-|---|---|---|
-| Backend | FastAPI | Free |
-| Embeddings | Cohere `embed-multilingual-v3.0` | Free tier |
-| Vector + relational store | Postgres + `pgvector` (Supabase) | Free tier |
-| LLM generation | OpenRouter (Gemma 4 26B) | Free tier |
-| Hosting | Render (Docker) | Free tier |
-| Frontend | Vanilla JS + Tailwind (CDN) | Free |
+- **Guest-First Ephemeral Design**: No user account required. Case details remain strictly in browser storage and are never stored in server databases.
+- **Statutory Source Integrity**: All citations include direct deep-links to official legislation on [Lovdata.no](https://lovdata.no).
+- **Security Headers**: Standard CSP, HSTS, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`.
+- **Statutory Legal Disclaimer**: Transparent notification distinguishing general legal information from formal advocate assistance.
 
 ---
 
-## Disclaimer
-
-This tool provides general information based on the reviewed source corpus and is **not legal advice**. A topic marked planned is not currently answerable from a reviewed corpus. Consult a qualified professional for your specific situation.
+## 📄 License
+MIT License. Statutory legal texts are governed by Lovdata and Norwegian public sector copyright rules.

@@ -1,14 +1,41 @@
 import { useEffect, useMemo, useState } from "react";
-import { ask, assess, brief, getTopics, sendCorrection } from "./api";
-import type { Answer, Assessment, Audience, CaseInput, Language, Topic, Workflow } from "./types";
+import { ask, assess, brief, getTopics, sendCorrection, recordVisit, getFreshness } from "./api";
+import type { Answer, Assessment, Audience, CaseInput, Language, Topic, Workflow, ActiveTab } from "./types";
+import { CategorySelector } from "./components/CategorySelector";
+import { LegalCalculators } from "./components/LegalCalculators";
+import { GuidedAssessment } from "./components/GuidedAssessment";
+import { DocumentAuditor } from "./components/DocumentAuditor";
+import { CitationViewer } from "./components/CitationViewer";
+import { QuickStart } from "./components/QuickStart";
 
-const initialCase: CaseInput = { situation: "", domain: "termination", audience: "employer", termination_reason: "", employee_age: null, years_employed: null, on_sick_leave: false, pregnant_or_parental_leave: false, in_probation: false, immediate_dismissal: false, notice_date: null, language: "nb" };
+const initialCase: CaseInput = {
+  situation: "",
+  domain: "termination",
+  audience: "employer",
+  termination_reason: "",
+  employee_age: null,
+  years_employed: null,
+  on_sick_leave: false,
+  pregnant_or_parental_leave: false,
+  in_probation: false,
+  immediate_dismissal: false,
+  notice_date: null,
+  language: "nb",
+};
+
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => (localStorage.getItem("rc-language") as Language) || "nb");
   const [audience, setAudience] = useState<Audience>("employer");
-  const [mode, setMode] = useState<"ask" | "assess">("ask");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("ask");
+  const [selectedDomain, setSelectedDomain] = useState<string>("all");
   const [question, setQuestion] = useState("");
-  const [caseInput, setCaseInput] = useState<CaseInput>(() => { try { return JSON.parse(localStorage.getItem("rc-case") || "null") || initialCase; } catch { return initialCase; } });
+  const [caseInput, setCaseInput] = useState<CaseInput>(() => {
+    try {
+      return JSON.parse(localStorage.getItem("rc-case") || "null") || initialCase;
+    } catch {
+      return initialCase;
+    }
+  });
   const [answer, setAnswer] = useState<Answer | null>(null);
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [busy, setBusy] = useState(false);
@@ -16,29 +43,413 @@ export default function App() {
   const [dark, setDark] = useState(false);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
-  const [topicSearch, setTopicSearch] = useState("");
-  useEffect(() => { getTopics().then(({ topics: loaded, workflows: loadedWorkflows }) => { setTopics(loaded); setWorkflows(loadedWorkflows); }).catch(() => undefined); }, []);
-  useEffect(() => { localStorage.setItem("rc-language", language); document.documentElement.lang = language; }, [language]);
-  useEffect(() => { localStorage.setItem("rc-case", JSON.stringify(caseInput)); }, [caseInput]);
-  const t = useMemo(() => language === "nb" ? { eyebrow: "Regelverk", title: "Arbeidsliv gjort forståelig.", subtitle: "Kildebasert beslutningsstøtte for norske arbeidsgivere og arbeidstakere.", ask: "Still et spørsmål", assess: "Vurder en situasjon", employer: "Jeg er arbeidsgiver", employee: "Jeg er arbeidstaker", placeholder: "Hva trenger du hjelp til?", send: "Finn svaret", start: "Start vurdering", privacy: "Ingen konto nødvendig. Utkast lagres bare i nettleseren din.", source: "Kilde", next: "Neste steg", clarify: "Avklar før du går videre", print: "Skriv ut beslutningsnotat", clear: "Slett utkast" } : { eyebrow: "Regelverk", title: "Work made understandable.", subtitle: "Source-grounded decision support for Norwegian employers and employees.", ask: "Ask a question", assess: "Assess a situation", employer: "I am an employer", employee: "I am an employee", placeholder: "What do you need help with?", send: "Find the answer", start: "Start assessment", privacy: "No account required. Drafts stay in your browser.", source: "Source", next: "Next steps", clarify: "Clarify before acting", print: "Print decision brief", clear: "Delete draft" }, [language]);
-  const submitAsk = async (value = question) => { if (!value.trim()) return; setBusy(true); setError(""); setAnswer(null); try { setAnswer(await ask(value, language, audience)); } catch { setError(language === "nb" ? "Vi fikk ikke kontakt med tjenesten. Prøv igjen." : "The service could not be reached. Try again."); } finally { setBusy(false); } };
-  const submitAssessment = async () => { if (!caseInput.situation.trim()) return; setBusy(true); setError(""); setAssessment(null); try { setAssessment(await assess({ ...caseInput, audience, language })); } catch { setError(language === "nb" ? "Vurderingen kunne ikke fullføres. Prøv igjen." : "The assessment could not be completed. Try again."); } finally { setBusy(false); } };
-  const clearDraft = () => { localStorage.removeItem("rc-case"); setCaseInput(initialCase); setAssessment(null); };
-  const printBrief = async () => { if (!assessment) return; const html = await brief(caseInput, assessment); const popup = window.open("", "_blank"); if (popup) { popup.document.write(html); popup.document.close(); popup.print(); } };
-  const update = (key: keyof CaseInput, value: unknown) => setCaseInput((current) => ({ ...current, [key]: value }));
-  return <div className={dark ? "app dark" : "app"}>
-    <header className="nav"><a className="brand" href="/"><span className="brand-mark">R</span><span>Regelverk</span></a><div className="nav-actions"><button className="minimal" onClick={() => setDark(!dark)} aria-label="Toggle theme">{dark ? "☼" : "◐"}</button><select value={language} onChange={(event) => setLanguage(event.target.value as Language)} aria-label="Language"><option value="nb">Bokmål</option><option value="en">English</option></select></div></header>
-    <main className="shell"><section className="hero"><p className="eyebrow">{t.eyebrow} · 2.0</p><h1>{t.title}</h1><p className="subtitle">{t.subtitle}</p><div className="audience"><button className={audience === "employer" ? "selected" : ""} onClick={() => setAudience("employer")}>{t.employer}</button><button className={audience === "employee" ? "selected" : ""} onClick={() => setAudience("employee")}>{t.employee}</button></div></section>
-      <section className="mode-switch" aria-label="Choose workflow"><button className={mode === "ask" ? "active" : ""} onClick={() => setMode("ask")}>{t.ask}</button><button className={mode === "assess" ? "active" : ""} onClick={() => setMode("assess")}>{t.assess}</button></section>
-      {mode === "ask" ? <section className="panel question-panel"><textarea value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitAsk(); } }} placeholder={t.placeholder} maxLength={1200} aria-label={t.placeholder} /><div className="panel-footer"><span>{t.privacy}</span><button className="primary" onClick={() => submitAsk()} disabled={busy || !question.trim()}>{busy ? "…" : t.send} <span>↗</span></button></div><div className="workflow-row">{workflows.filter((flow) => flow.id !== "ask").slice(0, 5).map((flow) => <button key={flow.id} onClick={() => { setMode("assess"); update("domain", flow.domain); }}><b>{flow.label}</b><small>{flow.description}</small></button>)}</div><label className="topic-search"><span>Finn tema</span><input value={topicSearch} onChange={(e) => setTopicSearch(e.target.value)} placeholder="Søk i arbeidsrettens temaer" /></label><div className="topic-grid">{topics.filter((topic) => `${topic.label} ${topic.description}`.toLowerCase().includes(topicSearch.toLowerCase())).map((topic) => <button key={topic.domain} className="topic" onClick={() => { setQuestion(topic.description); if (topic.status === "supported") submitAsk(topic.description); }}><span>{topic.label} <em className={`status ${topic.status}`}>{topic.status === "supported" ? "Støttet" : "Kommer"}</em></span><small>{topic.description}</small><b>›</b></button>)}</div></section> : <section className="panel assessment-panel"><div className="panel-heading"><div><p className="eyebrow">{t.assess}</p><h2>Fortell situasjonen med egne ord</h2></div><button className="minimal" onClick={clearDraft}>{t.clear}</button></div><textarea value={caseInput.situation} onChange={(e) => update("situation", e.target.value)} placeholder="For eksempel: En medarbeider med åtte års ansiennitet er sykmeldt, og virksomheten vurderer nedbemanning." maxLength={2000} /><div className="field-grid"><label>Hva vurderes?<input value={caseInput.termination_reason} onChange={(e) => update("termination_reason", e.target.value)} placeholder="Grunnlag eller tiltak" /></label><label>Alder<input type="number" value={caseInput.employee_age ?? ""} onChange={(e) => update("employee_age", e.target.value ? Number(e.target.value) : null)} placeholder="Valgfritt" /></label><label>Ansiennitet (år)<input type="number" step="0.5" value={caseInput.years_employed ?? ""} onChange={(e) => update("years_employed", e.target.value ? Number(e.target.value) : null)} placeholder="Valgfritt" /></label><label>Dato for varsel<input type="date" value={caseInput.notice_date ?? ""} onChange={(e) => update("notice_date", e.target.value || null)} /></label></div><div className="check-grid">{[["on_sick_leave", "Sykefravær"], ["pregnant_or_parental_leave", "Graviditet/permisjon"], ["in_probation", "Prøvetid"], ["immediate_dismissal", "Avskjed vurderes"]].map(([key, label]) => <label key={key}><input type="checkbox" checked={Boolean(caseInput[key as keyof CaseInput])} onChange={(e) => update(key as keyof CaseInput, e.target.checked)} />{label}</label>)}</div><button className="primary wide" onClick={submitAssessment} disabled={busy || !caseInput.situation.trim()}>{busy ? "…" : t.start} <span>↗</span></button></section>}
-      {error && <div className="error" role="alert">{error}</div>}
-      {answer && <AnswerCard answer={answer} t={t} />}
-      {assessment && <AssessmentCard assessment={assessment} t={t} onPrint={printBrief} />}
-      <section className="trust-row"><div><b>Verifiserte kilder</b><span>Offentlige kilder, synlig versjon og ferskhet</span></div><div><b>Privat som standard</b><span>Ingen konto. Ingen sakdata på serveren</span></div><div><b>Vet når den skal stoppe</b><span>Høyrisiko sendes videre til fagperson</span></div></section>
-    </main><footer className="footer">Regelverk gir generell informasjon og beslutningsstøtte, ikke juridisk rådgivning. Kontroller alltid en konkret sak med kvalifisert HR-, tillitsvalgt- eller juridisk rådgiver.</footer>
-  </div>;
-}
+  const [dailyVisitors, setDailyVisitors] = useState<number | null>(null);
+  const [sourceStatus, setSourceStatus] = useState<string | null>(null);
 
-function SourceCards({ citations, t }: { citations: { source_name: string; excerpt: string; url?: string }[]; t: { source: string } }) { return <div className="sources"><p className="eyebrow">{t.source}</p>{citations.length ? citations.map((citation) => <details key={`${citation.source_name}-${citation.excerpt}`}><summary>{citation.source_name}</summary><blockquote>{citation.excerpt}</blockquote>{citation.url && <a href={citation.url} target="_blank" rel="noreferrer">Åpne kilden ↗</a>}</details>) : <p className="muted">Ingen verifiserte kilder for dette spørsmålet i støttet korpus.</p>}</div>; }
-function AnswerCard({ answer, t }: { answer: Answer; t: { source: string } }) { return <section className="result-card"><div className={`risk-pill ${answer.confidence === "high" ? "good" : "review"}`}>{answer.confidence === "high" ? "✓ Verifisert svar" : "! Må kontrolleres"}</div><p className="answer">{answer.answer}</p>{answer.clarifying_questions?.length ? <div className="callout"><b>Avklar før du går videre</b><ul>{answer.clarifying_questions.map((item) => <li key={item}>{item}</li>)}</ul></div> : null}<SourceCards citations={answer.citations} t={t} />{answer.corpus && <p className="meta">Korpus {answer.corpus.corpus_version} · {answer.corpus.freshness_warning ? "ferskhet må kontrolleres" : "oppdatert kilde"}</p>}<div className="feedback"><span>Var dette nyttig?</span><button onClick={() => sendCorrection({ helpful: true })}>Ja</button><button onClick={() => sendCorrection({ helpful: false, category: "accuracy" })}>Nei</button></div></section>; }
-function AssessmentCard({ assessment, t, onPrint }: { assessment: Assessment; t: { next: string; clarify: string; print: string }; onPrint: () => void }) { return <section className="result-card"><div className={`risk-pill ${assessment.risk_level === "high" ? "danger" : "review"}`}>{assessment.risk_level.toUpperCase()} · {assessment.escalation_level === "urgent" ? "Stopp og få hjelp" : "Faglig kontroll anbefales"}</div><p className="answer">{assessment.summary}</p><div className="columns"><div><p className="eyebrow">{t.next}</p><ol>{assessment.next_steps.map((item) => <li key={item}>{item}</li>)}</ol></div><div><p className="eyebrow">{t.clarify}</p><ul>{(assessment.questions_to_confirm.length ? assessment.questions_to_confirm : ["Ingen ekstra spørsmål registrert."]).map((item) => <li key={item}>{item}</li>)}</ul></div></div><SourceCards citations={assessment.citations} t={{ source: "Kildegrunnlag" }} /><button className="secondary" onClick={onPrint}>{t.print} ↗</button></section>; }
+  useEffect(() => {
+    getTopics()
+      .then(({ topics: loaded, workflows: loadedWorkflows }) => {
+        setTopics(loaded);
+        setWorkflows(loadedWorkflows);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    getFreshness().then((response) => setSourceStatus(response.source_monitor?.status ?? null)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const storageKey = "rc-anonymous-visitor-id";
+    let visitorId = localStorage.getItem(storageKey);
+    if (!visitorId) {
+      visitorId = typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `visitor-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      localStorage.setItem(storageKey, visitorId);
+    }
+    recordVisit(visitorId).then((response) => setDailyVisitors(response.daily_visitors)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("rc-language", language);
+    document.documentElement.lang = language;
+  }, [language]);
+
+  useEffect(() => {
+    localStorage.setItem("rc-case", JSON.stringify(caseInput));
+  }, [caseInput]);
+
+  const t = useMemo(() => {
+    return language === "nb"
+      ? {
+          brand: "Regelverk",
+          tagline: "Norsk arbeidsrett og regelverk — kildebasert, transparent og presist.",
+          heroTitle: "Arbeidsrett du kan stole på.",
+          heroSubtitle: "Beslutningsstøtte for norske arbeidsgivere og arbeidstakere, forankret direkte i gjeldende lovverk fra Lovdata.",
+          askTab: "Still spørsmål",
+          assessTab: "Sakstriage",
+          toolsTab: "Kalkulatorer",
+          docTab: "Dokumentkontroll",
+          employer: "Arbeidsgiver",
+          employee: "Arbeidstaker",
+          askPlaceholder: "Hva lurer du på? F.eks. 'Hvor lang er oppsigelsesfristen etter 6 år?' eller 'Må vi ha drøftingsmøte før oppsigelse?'",
+          askBtn: "Finn svar",
+          privacyNote: "🔒 Gjestemodus: Ingen saktekst lagres på serveren. Utkast forblir kun i nettleseren din.",
+          feedbackHelpful: "Var dette svaret nyttig?",
+          yes: "Ja",
+          no: "Nei",
+          questionLabel: "Ditt spørsmål om arbeidsrett",
+          confidenceHigh: "Kildebekreftet svar",
+          confidenceReview: "Krever individuell kontroll",
+          topicPrefix: "Område",
+          clarify: "Forhold som bør avklares:",
+          searching: "Søker i lovverket...",
+          roleLabel: "Velg rolle",
+          eyebrow: "ARBEIDSRETT · JURIDISK BESLUTNINGSSTØTTE",
+          trustSources: "Offisielle kilder fra Lovdata",
+          trustSourcesBody: "Arbeidsmiljøloven, Ferieloven og tilhørende forskrifter med direkte referanser.",
+          trustPrivacy: "Gjestemodus som standard",
+          trustPrivacyBody: "Ingen personopplysninger eller sakstekst lagres i database.",
+          trustPrecision: "Deterministiske garantier",
+          trustPrecisionBody: "Frister, satser og lovbestemte klausuler beregnes uten modell-hallusinering.",
+          dailyVisitors: "Besøkende i dag",
+          sourceChanged: "Offisiell kilde endret – kvalitetssikring pågår.",
+          sourceUnavailable: "Kildestatus kunne ikke bekreftes akkurat nå.",
+          disclaimer: "Dette er generell juridisk informasjon basert på gjeldende lovverk, ikke individuell advokatbistand. Ved tvist bør saken kvalitetssikres med advokat, tillitsvalgt eller fagforening.",
+        }
+      : {
+          brand: "Regelverk",
+          tagline: "Norwegian employment law made clear, source-grounded and actionable.",
+          heroTitle: "Norwegian Labour Law You Can Trust.",
+          heroSubtitle: "Objective decision support for employers and employees, grounded directly in official Norwegian statutes.",
+          askTab: "Ask Question",
+          assessTab: "Case Triage",
+          toolsTab: "Calculators",
+          docTab: "Document Audit",
+          employer: "Employer",
+          employee: "Employee",
+          askPlaceholder: "What do you need guidance on? E.g. 'What is the notice period after 6 years?' or 'Is a discussion meeting mandatory?'",
+          askBtn: "Find Answer",
+          privacyNote: "🔒 Guest mode: No case text is stored on the server. Drafts stay solely in your browser.",
+          feedbackHelpful: "Was this helpful?",
+          yes: "Yes",
+          no: "No",
+          questionLabel: "Your employment-law question",
+          confidenceHigh: "Source-verified answer",
+          confidenceReview: "Requires individual review",
+          topicPrefix: "Topic",
+          clarify: "Points to clarify:",
+          searching: "Searching the legislation...",
+          roleLabel: "Choose your role",
+          eyebrow: "EMPLOYMENT LAW · SOURCE-GROUNDED DECISION SUPPORT",
+          trustSources: "Official statutory sources",
+          trustSourcesBody: "The Working Environment Act, Holiday Act and related regulations with direct references.",
+          trustPrivacy: "Guest mode by default",
+          trustPrivacyBody: "No personal data or case text is stored in the database.",
+          trustPrecision: "Deterministic checks",
+          trustPrecisionBody: "Deadlines, rates and statutory clauses are calculated without model hallucination.",
+          dailyVisitors: "Visitors today",
+          sourceChanged: "An official source changed — verification is required.",
+          sourceUnavailable: "Source freshness could not be confirmed right now.",
+          disclaimer: "This is general legal information based on official statutes, not individual legal advice. In case of dispute, verify with a qualified lawyer or union representative.",
+        };
+  }, [language]);
+
+  const handleAskSubmit = async (query = question) => {
+    if (!query.trim()) return;
+    setBusy(true);
+    setError("");
+    setAnswer(null);
+    try {
+      const res = await ask(query, language, audience);
+      setAnswer(res);
+    } catch {
+      setError(language === "nb" ? "Kunne ikke nå tjenesten. Prøv igjen." : "Could not reach the service. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleAssessmentSubmit = async () => {
+    if (!caseInput.situation.trim()) return;
+    setBusy(true);
+    setError("");
+    setAssessment(null);
+    try {
+      const res = await assess({ ...caseInput, audience, language });
+      setAssessment(res);
+    } catch {
+      setError(language === "nb" ? "Vurderingen kunne ikke fullføres. Prøv igjen." : "Assessment could not be completed. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleClearDraft = () => {
+    localStorage.removeItem("rc-case");
+    setCaseInput(initialCase);
+    setAssessment(null);
+  };
+
+  const handlePrintBrief = async () => {
+    if (!assessment) return;
+    const html = await brief(caseInput, assessment);
+    const popup = window.open("", "_blank");
+    if (popup) {
+      popup.document.write(html);
+      popup.document.close();
+      popup.print();
+    }
+  };
+
+  const updateCase = (key: keyof CaseInput, val: any) => {
+    setCaseInput((prev) => ({ ...prev, [key]: val }));
+  };
+
+  const handleSelectCategory = (domain: string, samplePrompt?: string) => {
+    setSelectedDomain(domain);
+    if (samplePrompt && activeTab === "ask") {
+      setQuestion(samplePrompt);
+    }
+  };
+
+  const handleQuickStart = ({ tab, prompt }: { tab: ActiveTab; prompt?: string }) => {
+    setActiveTab(tab);
+    if (prompt) setQuestion(prompt);
+  };
+
+  return (
+    <div className={dark ? "app dark" : "app"}>
+      <header className="nav" role="banner">
+        <a className="brand" href="/" aria-label="Regelverk Copilot Hjem">
+          <span className="brand-mark">§</span>
+          <div className="brand-text">
+            <span className="brand-name">{t.brand}</span>
+            <span className="brand-version">Copilot 2.0</span>
+          </div>
+        </a>
+
+        <div className="nav-actions">
+          <div className="audience-toggle" role="group" aria-label={t.roleLabel}>
+            <button
+              className={audience === "employer" ? "active" : ""}
+              onClick={() => setAudience("employer")}
+            >
+              💼 {t.employer}
+            </button>
+            <button
+              className={audience === "employee" ? "active" : ""}
+              onClick={() => setAudience("employee")}
+            >
+              👤 {t.employee}
+            </button>
+          </div>
+
+          <button
+            className="minimal-btn"
+            onClick={() => setDark(!dark)}
+            aria-label={dark ? "Bytt til lyst tema" : "Bytt til mørkt tema"}
+          >
+            {dark ? "☀️" : "🌙"}
+          </button>
+
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as Language)}
+            aria-label="Språkvelger"
+            className="lang-select"
+          >
+            <option value="nb">Norsk (Bokmål)</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+      </header>
+
+      <main className="shell" role="main">
+        <section className="hero">
+          <p className="eyebrow">{t.eyebrow}</p>
+          <h1>{t.heroTitle}</h1>
+          <p className="subtitle">{t.heroSubtitle}</p>
+        </section>
+
+        <nav className="tab-nav" role="tablist" aria-label="Hovednavigasjon">
+          <button
+            role="tab"
+            aria-selected={activeTab === "ask"}
+            className={`tab-btn ${activeTab === "ask" ? "active" : ""}`}
+            onClick={() => setActiveTab("ask")}
+          >
+            💬 {t.askTab}
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "assess"}
+            className={`tab-btn ${activeTab === "assess" ? "active" : ""}`}
+            onClick={() => setActiveTab("assess")}
+          >
+            📋 {t.assessTab}
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "tools"}
+            className={`tab-btn ${activeTab === "tools" ? "active" : ""}`}
+            onClick={() => setActiveTab("tools")}
+          >
+            🧮 {t.toolsTab}
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === "doc"}
+            className={`tab-btn ${activeTab === "doc" ? "active" : ""}`}
+            onClick={() => setActiveTab("doc")}
+          >
+            📄 {t.docTab}
+          </button>
+        </nav>
+
+        {activeTab === "ask" && (
+          <div className="tab-content" role="tabpanel">
+            <QuickStart audience={audience} language={language} onStart={handleQuickStart} />
+            <CategorySelector
+              topics={topics}
+              selectedDomain={selectedDomain}
+              onSelectCategory={handleSelectCategory}
+              language={language}
+            />
+
+            <section className="panel question-panel">
+              <label htmlFor="user-question" className="visually-hidden">
+                {t.questionLabel}
+              </label>
+              <textarea
+                id="user-question"
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleAskSubmit();
+                  }
+                }}
+                placeholder={t.askPlaceholder}
+                maxLength={1200}
+                rows={3}
+              />
+
+              <div className="panel-footer">
+                <span className="privacy-text">{t.privacyNote}</span>
+                <button
+                  className="primary"
+                  onClick={() => handleAskSubmit()}
+                  disabled={busy || !question.trim()}
+                >
+                  {busy ? t.searching : t.askBtn} ↗
+                </button>
+              </div>
+            </section>
+
+            {error && (
+              <div className="error-alert" role="alert">
+                ⚠️ {error}
+              </div>
+            )}
+
+            {answer && (
+              <section className="result-card" role="region" aria-label="Svar på spørsmål">
+                <div className="result-header">
+                  <div className={`risk-pill ${answer.confidence === "high" ? "good" : "review"}`}>
+                    {answer.confidence === "high" ? `✓ ${t.confidenceHigh}` : `! ${t.confidenceReview}`}
+                  </div>
+                  {answer.domain && (
+                    <span className="domain-pill">{t.topicPrefix}: {answer.domain}</span>
+                  )}
+                </div>
+
+                <div className="answer-prose">
+                  <p>{answer.answer}</p>
+                </div>
+
+                {answer.clarifying_questions && answer.clarifying_questions.length > 0 && (
+                  <div className="callout-box">
+                    <strong>⚠️ {t.clarify}</strong>
+                    <ul>
+                      {answer.clarifying_questions.map((q, idx) => (
+                        <li key={idx}>{q}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <CitationViewer citations={answer.citations} language={language} />
+
+                <div className="feedback-row">
+                  <span>{t.feedbackHelpful}</span>
+                  <button className="feedback-btn" onClick={() => sendCorrection({ helpful: true })}>
+                    👍 {t.yes}
+                  </button>
+                  <button className="feedback-btn" onClick={() => sendCorrection({ helpful: false, category: "accuracy" })}>
+                    👎 {t.no}
+                  </button>
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {activeTab === "assess" && (
+          <div className="tab-content" role="tabpanel">
+            <GuidedAssessment
+              caseInput={caseInput}
+              onChangeInput={updateCase}
+              onSubmit={handleAssessmentSubmit}
+              onClear={handleClearDraft}
+              onPrintBrief={handlePrintBrief}
+              assessment={assessment}
+              busy={busy}
+              language={language}
+            />
+          </div>
+        )}
+
+        {activeTab === "tools" && (
+          <div className="tab-content" role="tabpanel">
+            <LegalCalculators language={language} />
+          </div>
+        )}
+
+        {activeTab === "doc" && (
+          <div className="tab-content" role="tabpanel">
+            <DocumentAuditor language={language} />
+          </div>
+        )}
+
+        <section className="trust-features">
+          <div className="trust-col">
+            <div className="trust-icon">📜</div>
+            <strong>{t.trustSources}</strong>
+            <p>{t.trustSourcesBody}</p>
+          </div>
+          <div className="trust-col">
+            <div className="trust-icon">🔒</div>
+            <strong>{t.trustPrivacy}</strong>
+            <p>{t.trustPrivacyBody}</p>
+          </div>
+          <div className="trust-col">
+            <div className="trust-icon">⚖️</div>
+            <strong>{t.trustPrecision}</strong>
+            <p>{t.trustPrecisionBody}</p>
+          </div>
+        </section>
+      </main>
+
+      <footer className="footer" role="contentinfo">
+        <p>{t.disclaimer}</p>
+        {dailyVisitors !== null && <p className="daily-visitors" aria-label={`${t.dailyVisitors}: ${dailyVisitors}`}>◉ {t.dailyVisitors}: <strong>{dailyVisitors.toLocaleString(language === "nb" ? "nb-NO" : "en-GB")}</strong></p>}
+        {sourceStatus === "changed" && <p className="source-status warning">⚠ {t.sourceChanged}</p>}
+        {sourceStatus === "unavailable" && <p className="source-status warning">⚠ {t.sourceUnavailable}</p>}
+        <p className="footer-meta">Regelverk Copilot 2.0 · Oppdatert for norsk lovgivning 2026</p>
+      </footer>
+    </div>
+  );
+}

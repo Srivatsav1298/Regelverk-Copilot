@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.decision_tools import calculate_notice_period, check_missing_information, detect_protected_situation
+from app.decision_tools import calculate_notice_period, check_missing_information, detect_protected_situation, calculate_permittering, generate_whistleblowing_routine, calculate_employment_rule
 from app.schemas import CaseAssessmentRequest
 
 
@@ -34,3 +34,28 @@ def test_protected_situation_and_missing_facts():
 def test_contradictory_protection_flags_are_called_out():
     case = CaseAssessmentRequest(situation="Leave case", on_sick_leave=True, pregnant_or_parental_leave=True)
     assert any("bland" in item for item in check_missing_information(case))
+
+
+def test_permitting_timeline_uses_calendar_notice_and_workday_wage_period():
+    result = calculate_permittering(notice_date=date(2026, 10, 16), percentage=50, affected_employees=12)
+    assert result["status"] == "calculated"
+    assert result["notice_period_days"] == 14
+    assert result["permittering_start"] == "2026-10-30"
+    assert result["employer_wage_obligation_workdays"] == 15
+    assert any("meldeplikt" in item for item in result["warnings"])
+
+
+def test_whistleblowing_routine_is_customizable():
+    result = generate_whistleblowing_routine(employer_name="Nord AS", contact="HR")
+    assert result["status"] == "generated"
+    assert "Nord AS" in result["title"]
+    assert len(result["sections"]) >= 5
+
+
+def test_calculation_language_switch_returns_english_user_facing_text():
+    result = calculate_employment_rule("sick_leave_timeline", {"first_sick_day": "2026-01-01"}, "en")
+    assert result["milestones"][0]["label"] == "Employer period (days 1–16)"
+    assert "The employer pays" in result["milestones"][0]["description"]
+
+    routine = calculate_employment_rule("whistleblowing_routine", {"employer_name": "Acme AS", "contact": "HR"}, "en")
+    assert routine["sections"][0]["heading"].startswith("1. Purpose")

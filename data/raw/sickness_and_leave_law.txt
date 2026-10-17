@@ -1,0 +1,34 @@
+### SOURCE: Arbeidsmiljøloven § 4-6 | Særlig tilrettelegging og oppfølgingsplan ved sykdom
+
+(1) Hvis en arbeidstaker får redusert arbeidsevne som følge av ulykke, sykdom, slitasje e.l., skal arbeidsgiver, så langt det er mulig, iverksette nødvendige tiltak for at arbeidstaker skal kunne beholde eller få et egnet arbeid.
+(2) Arbeidsgiver skal i samråd med arbeidstaker utarbeide oppfølgingsplan for tilbakeføring til arbeid i forbindelse med ulykke, sykdom, slitasje eller lignende, med mindre dette er åpenbart unødvendig. Arbeidet med oppfølgingsplan skal starte så tidlig som mulig, og planen skal være utarbeidet senest når arbeidstaker har vært helt eller delvis borte fra arbeidet i fire uker.
+(3) Arbeidsgiver skal innkalle arbeidstaker til dialogmøte om innholdet i oppfølgingsplanen senest innen sju uker etter at arbeidstaker har vært helt borte fra arbeidet som følge av ulykke, sykdom, slitasje e.l., med mindre dette er åpenbart unødvendig.
+(4) Oppfølgingsplanen skal formidles til sykmelder og sendes uoppfordret til NAV senest etter sju uker.
+
+### SOURCE: Folketrygdloven § 8-18 | Arbeidsgiverperioden for sykepenger
+
+(1) Arbeidsgiveren skal yte sykepenger i en arbeidsgiverperiode på opptil 16 kalenderdager. Arbeidsgiverperioden regnes fra og med første hele fraværsdag som skyldes arbeidsuførheten.
+(2) Når det har gått 16 kalenderdager fra og med første sykefraværsdag, overtar trygden (NAV) utbetalingen av sykepenger etter folketrygdens regler.
+
+### SOURCE: Folketrygdloven § 8-24 | Rett til å nytte egenmelding
+
+(1) For å få rett til å nytte egenmelding må arbeidstakeren ha arbeidet hos arbeidsgiveren i minst to måneder (opptjeningstid).
+(2) Egenmelding kan nyttes for opptil tre kalenderdager om gangen, inntil fire ganger i løpet av en 12-måneders periode. Ved nytt fravær innen 16 dager regnes fraværsdagene sammen.
+(3) Virksomheter med IA-avtale eller utvidet egenmeldingsordning kan gi rett til egenmelding i inntil 8 dager per fraværstilfelle og opptil 24 dager per 12 måneder.
+(4) Hvis arbeidsforholdet har vart under to måneder, kreves sykmelding fra lege fra første fraværsdag for å ha rett til sykepenger (etter 4 ukers opptjeningstid for sykepengerett generelt etter § 8-2).
+
+### SOURCE: Folketrygdloven § 8-12 | Maksdato for sykepenger og 52 ukers varighet
+
+(1) Sykepenger ytes i til sammen høyst 52 uker (248 eller 260 sykepengedager) i løpet av en treårsperiode. Når en arbeidstaker har mottatt sykepenger i 52 uker, opphører retten til sykepenger, og arbeidstaker må søke arbeidsavklaringspenger (AAP).
+(2) Samtidig med at maksdatoen for sykepenger nås etter 12 måneder, utløper det særskilte oppsigelsesvernet etter arbeidsmiljøloven § 15-8, og sakligheten av en oppsigelse vurderes deretter etter § 15-7.
+
+### SOURCE: Arbeidsmiljøloven § 14-15 | Utbetaling av lønn og forbud mot trekk i lønn
+
+(1) Lønn og feriepenger skal utbetales til avtalt tid. Trekk i lønn og feriepenger kan ikke gjøres unntatt når det er hjemlet i lov (skattetrekk), tariffavtale, pensjonsinnskudd, eller når det på forhånd er fastsatt ved skriftlig avtale.
+(2) Arbeidsgiver kan ikke ensidig trekke i lønn eller feriepenger for feil utbetaling, kurskostnader, eller tap av utstyr uten gyldig skriftlig avtale eller skriftlig erkjennelse etter skade.
+(3) Trekk i lønn skal begrenses slik at arbeidstaker beholder det som med rimelighet trengs til underhold for seg og sin husstand.
+
+### SOURCE: Ferieloven § 11 | Sluttoppgjør og feriepenger ved opphør
+
+(1) Opphører arbeidsforholdet, skal alle opptjente feriepenger utbetales siste vanlige lønningsdag før fratredelse. Den del av feriepengene som ikke lar seg beregne innen dette tidspunkt, kan utbetales i forbindelse med det avsluttende lønnsoppgjøret.
+(2) Arbeidsgiver har ikke adgang til å foreta ulovlig trekk i opptjente feriepenger i strid med arbeidsmiljøloven § 14-15.

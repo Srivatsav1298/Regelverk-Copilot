@@ -1,0 +1,43 @@
+### SOURCE: Arbeidsmiljøloven § 1-8 | Arbeidstaker og oppdragstaker
+
+(1) Med arbeidstaker menes enhver som utfører arbeid i underordnet stilling for en annen. Ved vurderingen av om det foreligger et ansettelsesforhold skal det blant annet legges vekt på om arbeidet utføres personlig, om arbeidstakeren er underlagt arbeidsgivers styring og kontroll, om arbeidsgiver stiller til rådighet arbeidsrom og redskaper, og om godtgjørelsen utbetales som lønn.
+(2) Det skal legges til grunn at det foreligger et arbeidstakerforhold med mindre oppdragsgiver gjør det overveiende sannsynlig at det foreligger et selvstendig oppdragsforhold.
+
+### SOURCE: Arbeidsmiljøloven § 14-5 | Krav om skriftlig arbeidsavtale
+
+(1) Det skal inngås skriftlig arbeidsavtale i alle arbeidsforhold. Arbeidsgiver skal sørge for at skriftlig arbeidsavtale kommer i stand. Dette gjelder uavhengig av om ansettelsen er fast eller midlertidig, og uavhengig av arbeidsforholdets varighet.
+(2) I arbeidsforhold med en samlet varighet av mer enn en måned skal skriftlig arbeidsavtale foreligge snarest mulig og senest syv dager etter at arbeidsforholdet begynte.
+
+### SOURCE: Arbeidsmiljøloven § 14-6 | Minimumskrav til innholdet i den skriftlige arbeidsavtalen
+
+(1) Arbeidsavtalen skal inneholde opplysninger om forhold av vesentlig betydning i arbeidsforholdet, herunder:
+a) partenes identitet,
+b) arbeidsplassen (forretningsadresse eller der arbeidet hovedsakelig utføres),
+c) en beskrivelse av arbeidet eller arbeidstakerens tittel, stilling eller arbeidskategori,
+d) tidspunktet for arbeidsforholdets begynnelse,
+e) forventet varighet dersom arbeidsforholdet er midlertidig, samt det rettslige grunnlaget for ansettelsen,
+f) eventuelle prøvetidsbestemmelser, herunder prøvetidens lengde og adgang til forlengelse,
+g) arbeidstakerens rettigheter til ferie og feriepenger samt reglene for fastsetting av ferie,
+h) arbeidstakerens og arbeidsgiverens oppsigelsesfrister og fremgangsmåte ved opphør,
+i) den gjeldende eller avtalte lønn ved arbeidsforholdets begynnelse, eventuelle tillegg og andre godtgjøringer, samt utbetalingsmåte og lønnstermin,
+j) den normale daglige eller ukentlige arbeidstid, samt ordninger for vaktendringer og overtid,
+k) lengde og plassering av pauser,
+l) eventuelle tariffavtaler som regulerer arbeidsforholdet,
+m) rett til kompetanseutvikling som arbeidsgiver eventuelt tilbyr,
+n) ytelser i regi av arbeidsgiver til sosial trygghet (pensjon og forsikring).
+
+### SOURCE: Arbeidsmiljøloven § 14-8 | Endringer i arbeidsforholdet
+
+(1) Endringer i arbeidsforholdet som nevnt i §§ 14-6 og 14-7 skal tas inn i arbeidsavtalen så tidlig som mulig og senest den dagen endringen trer i kraft.
+(2) Dette gjelder ikke dersom endringene skyldes endringer i lover, forskrifter eller tariffavtaler som avtalen henviser til.
+
+### SOURCE: Arbeidsmiljøloven § 14-9 | Fast og midlertidig ansettelse
+
+(1) Arbeidstaker skal ansettes fast. Med fast ansettelse menes at ansettelsen er løpende og tidsubegrenset, og at lovens regler om opphør av arbeidsforhold gjelder.
+(2) Avtale om midlertidig ansettelse kan likevel inngås:
+a) når arbeidet er av midlertidig karakter og skiller seg fra det som ordinært utføres i virksomheten,
+b) for arbeid i stedet for en annen (vikariat),
+c) for praksisarbeid,
+d) med deltaker i arbeidsmarkedstiltak i regi av eller i samarbeid med Arbeids- og velferdsetaten (NAV),
+e) med idrettsutøvere, idrettstrenere og dommere innen den organiserte idretten.
+(3) Arbeidstaker som har vært sammenhengende midlertidig ansatt i mer enn tre eller fire år etter reglene i denne paragraf, har krav på fast ansettelse.

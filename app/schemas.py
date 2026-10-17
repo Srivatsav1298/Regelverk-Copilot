@@ -100,3 +100,8 @@ class BriefRequest(BaseModel):
 class FeedbackRequest(BaseModel):
     helpful: bool
     category: Optional[Literal["accuracy", "citation", "language", "latency", "other"]] = None
+
+
+class VisitRequest(BaseModel):
+    # Generated locally in the browser; never a name, email, IP or case ID.
+    visitor_id: str

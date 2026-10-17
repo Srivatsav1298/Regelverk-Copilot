@@ -2,6 +2,7 @@ import sys, os
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from app.metrics import record_request, get_summary, _records
+from app import analytics
 
 
 def test_store_starts_empty():
@@ -32,3 +33,10 @@ def test_summary_computes_rates_correctly():
     assert summary["avg_latency_ms"] == 152.5
     assert summary["high_confidence_pct"] == 75.0
     assert summary["low_confidence_pct"] == 25.0
+
+
+def test_daily_visitors_are_anonymous_and_deduplicated(tmp_path, monkeypatch):
+    monkeypatch.setattr(analytics, "DB_PATH", tmp_path / "analytics.db")
+    assert analytics.record_daily_visit("browser-a") == 1
+    assert analytics.record_daily_visit("browser-a") == 1
+    assert analytics.record_daily_visit("browser-b") == 2

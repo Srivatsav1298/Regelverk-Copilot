@@ -1,0 +1,24 @@
+### SOURCE: Arbeidsmiljøloven § 10-4 | Alminnelig arbeidstid
+
+(1) Den alminnelige arbeidstid må ikke overstige ni timer i løpet av 24 timer og 40 timer i løpet av syv dager.
+(2) For arbeid som helt eller i det vesentlige er av passiv karakter, kan den alminnelige arbeidstid forlenges etter avtale eller dispensasjon.
+(3) For skiftarbeid og turnusarbeid er den ukentlige arbeidstid 38 eller 36 timer per uke avhengig av ubekvemstillegg og nattarbeid.
+
+### SOURCE: Arbeidsmiljøloven § 10-6 | Overtid
+
+(1) Arbeid utover lovens grenser for alminnelig arbeidstid etter § 10-4 regnes som overtid.
+(2) Overtidsarbeid må ikke gjennomføres som en fast ordning, og er bare tillatt dersom det foreligger et særlig og tidsavgrenset behov for det.
+(3) Før overtidsarbeid iverksettes skal arbeidsgiver, så fremt det er mulig, drøfte nødvendigheten med de tillitsvalgte.
+(4) Arbeidstaker har rett til å bli fritatt fra å utføre overtidsarbeid dersom vedkommende av helsemessige eller vektige sosiale grunner ber om det. Arbeidsgiver plikter også ellers å frita arbeidstaker som ber om det, når arbeidet uten skade kan utsettes eller utføres av andre.
+(5) Overtidsarbeidet må ikke overstige 10 timer i løpet av syv dager, 25 timer i fire sammenhengende uker og 200 timer innenfor en periode på 52 uker.
+(11) For overtidsarbeid skal det betales et tillegg til den lønn arbeidstakeren har for tilsvarende arbeid i den alminnelige arbeidstiden. Tillegget skal være minst 40 prosent.
+
+### SOURCE: Arbeidsmiljøloven § 10-8 | Daglig og ukentlig arbeidsfri
+
+(1) Arbeidstaker skal ha minst 11 timer sammenhengende arbeidsfri i løpet av 24 timer. Den arbeidsfrie perioden skal plasseres mellom to hovedarbeidsperioder.
+(2) Arbeidstaker skal ha en sammenhengende arbeidsfri periode på minst 35 timer i løpet av syv dager. Den ukentlige arbeidsfrie perioden skal så vidt mulig omfatte søndag.
+
+### SOURCE: Arbeidsmiljøloven § 10-9 | Pauser
+
+(1) Arbeidstaker skal ha minst en pause dersom den daglige arbeidstiden overstiger fem og en halv time. Pausene skal til sammen være minst en halv time hvis den daglige arbeidstiden er minst åtte timer.
+(2) Når arbeidstaker ikke fritt kan forlate arbeidsstedet under pausen eller der det ikke finnes tilfredsstillende pauserom, skal pausen regnes som en del av arbeidstiden.
