@@ -51,6 +51,11 @@ TOOLS = [
         "input_schema": {"type": "object", "properties": {"rule": {"type": "string"}, "inputs": {"type": "object"}}, "required": ["rule"]},
     },
     {
+        "name": "calculate_holiday_pay_amount",
+        "description": "Calculate a supplied holiday-pay percentage with exact NOK arithmetic; legal rate applicability is handled separately.",
+        "input_schema": {"type": "object", "properties": {"remuneration": {"type": "number"}, "rate_pct": {"type": "number"}}, "required": ["remuneration", "rate_pct"]},
+    },
+    {
         "name": "check_source_freshness",
         "description": "Report corpus version, review date, and freshness status.",
         "input_schema": {"type": "object", "properties": {}},

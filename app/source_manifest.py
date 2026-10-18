@@ -47,6 +47,7 @@ SOURCES: List[Dict[str, Any]] = [
     {"domain": "holidays", "provision": "Ferieloven § 5", "title": "Feriefritidens lengde", "official_url": "https://lovdata.no/lov/1988-04-29-21", "status": "supported"},
     {"domain": "holidays", "provision": "Ferieloven § 6", "title": "Fastsetting av ferie og drøftingsplikt", "official_url": "https://lovdata.no/lov/1988-04-29-21", "status": "supported"},
     {"domain": "holidays", "provision": "Ferieloven § 10", "title": "Beregning av feriepenger", "official_url": "https://lovdata.no/lov/1988-04-29-21", "status": "supported"},
+    {"domain": "holidays", "provision": "Ferieloven § 11", "title": "Utbetaling av feriepenger", "official_url": "https://lovdata.no/lov/1988-04-29-21", "status": "supported"},
 
     # Workplace Rights & Whistleblowing (AML Chapter 2A & Chapter 4)
     {"domain": "workplace_rights", "provision": "§ 2A-1", "title": "Rett til å varsle om kritikkverdige forhold", "official_url": "https://lovdata.no/lov/2005-06-17-62/kapittel_2A", "status": "supported"},

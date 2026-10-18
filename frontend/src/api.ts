@@ -1,6 +1,9 @@
 import type { Answer, Assessment, CaseInput, Language, Audience, Topic, Workflow, CalculationResult, Corpus } from "./types";
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? "";
+// Local builds may be served from Vite, port 3000, or a static preview server.
+// Always target the local API on localhost; deployed domains remain same-origin.
+const isLocalHost = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const API_BASE = import.meta.env.VITE_API_BASE ?? (isLocalHost ? "http://127.0.0.1:8000" : "");
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {

@@ -1,5 +1,6 @@
 # pyrefly: ignore [missing-import]
 import time
+import json
 import os
 from pathlib import Path
 import logging
@@ -19,7 +20,7 @@ from app.verification import verify_citations
 from app.cache import get_cached_response, set_cached_response
 from app.metrics import record_request, get_summary
 from app.source_manifest import corpus_metadata, topic_catalog, freshness_report, WORKFLOWS
-from app.decision_tools import calculate_employment_rule
+from app.decision_tools import calculate_employment_rule, calculate_holiday_pay_amount
 from app.brief import render_decision_brief
 from app.analytics import record_daily_visit, daily_visitor_count
 from app.source_monitor import source_freshness
@@ -148,7 +149,8 @@ def ask(request: Request, ask_request: AskRequest):
         result.corpus = {**corpus_metadata(), "freshness_warning": True, "source_monitor": source_status}
         return result
 
-    cached = None if ask_request.include_trace else get_cached_response(f"{ask_request.language}:{ask_request.question}")
+    cache_context = json.dumps({"audience": ask_request.audience, "domain": ask_request.domain, "as_of_date": ask_request.as_of_date}, sort_keys=True)
+    cached = None if ask_request.include_trace else get_cached_response(f"{ask_request.language}:{ask_request.question}", cache_context)
     if cached is not None:
         logger.info("Cache hit — returning cached response")
         record_request(
@@ -167,7 +169,8 @@ def ask(request: Request, ask_request: AskRequest):
     coverage = intent.get("coverage", {})
 
     # Only reject if domain is planned and no supported chunks were retrieved, or no chunks matched
-    if not chunks and (coverage.get("status") == "planned" or intent.get("domain") == "unknown"):
+    response_plan = workflow.get("response_plan", {})
+    if not chunks and (coverage.get("status") == "planned" or intent.get("domain") == "unknown") and not response_plan.get("calculation"):
         result = AskResponse(
             answer="I can’t safely answer this from the reviewed employment-law sources currently available. Choose a supported topic or consult a qualified adviser for this question." if ask_request.language == "en" else "Jeg kan ikke svare trygt på dette med de kvalitetssikrede arbeidsrettskildene som er tilgjengelige nå. Velg et støttet tema eller kontakt en kvalifisert rådgiver.",
             citations=[], confidence="low", domain=intent.get("domain"), subtopic=intent.get("intent"),
@@ -178,10 +181,10 @@ def ask(request: Request, ask_request: AskRequest):
         record_request(question_length=len(ask_request.question), cache_hit=False, confidence="low", latency_ms=(time.perf_counter()-start)*1000, provider=provider_name(), metadata={"unsupported": True}, tools=workflow["tools"])
         return result
 
-    result = generate_answer(ask_request.question, chunks, language=ask_request.language, audience=ask_request.audience)
+    result = generate_answer(ask_request.question, chunks, language=ask_request.language, audience=ask_request.audience, plan=workflow.get("response_plan"))
     result.corpus = corpus_metadata()
     for citation in result.citations:
-        citation.url = citation.url or result.corpus["source_url"]
+        citation.url = citation.url or next((item["official_url"] for item in result.corpus["sources"] if item["provision"] in citation.source_name), result.corpus["source_url"])
         citation.source_status = citation.source_status or "supported"
     result.domain = intent.get("domain")
     result.subtopic = intent.get("intent")
@@ -210,7 +213,7 @@ def ask(request: Request, ask_request: AskRequest):
     )
 
     if not ask_request.include_trace:
-        set_cached_response(f"{ask_request.language}:{ask_request.question}", result)
+        set_cached_response(f"{ask_request.language}:{ask_request.question}", result, cache_context)
     return result
 
 
@@ -252,6 +255,9 @@ def feedback(request: FeedbackRequest):
 
 @app.post("/calculate")
 def calculate(payload: CalculationRequest):
+    if payload.rule == "holiday_pay_amount":
+        result = calculate_holiday_pay_amount(remuneration=payload.inputs.get("remuneration"), rate_pct=payload.inputs.get("rate_pct"))
+        return {"rule": payload.rule, "result": result, "source_version": corpus_metadata()["corpus_version"], "review_required": True}
     result = calculate_employment_rule(payload.rule, payload.inputs, payload.language)
     return {"rule": payload.rule, "result": result, "source_version": corpus_metadata()["corpus_version"], "review_required": True}
 

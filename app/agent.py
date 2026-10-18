@@ -19,12 +19,12 @@ def classify_intent(question: str) -> dict:
         "discussion_meeting": ["drøfting", "drøftingsmøte", "15-1", "discussion meeting", "før oppsigelse"],
         "mass_redundancy": ["masseoppsigelse", "15-2", "collective redundancy", "10 ansatte", "varsel til nav"],
         "notice_period": ["notice", "oppsigelsesfrist", "oppsigelsestid", "15-3", "frister", "hvor lang frist", "ansiennitet"],
-        "form_requirements": ["formkrav", "skriftlig oppsigelse", "15-4", "formfeil", "15-5", "rekommandert", "hva må stå i oppsigelsen"],
+        "form_requirements": ["formkrav", "skriftlig oppsigelse", "verbal notice", "15-4", "formfeil", "15-5", "rekommandert", "hva må stå i oppsigelsen", "writing"],
         "probation": ["probation", "prøvetid", "15-6", "oppsigelse i prøvetid", "prøvetidsperiode"],
         "justification": ["saklig", "saklig grunn", "usaklig", "nedbemanning", "15-7", "driftsinnskrenkning", "valid reason", "cause", "annet passende arbeid"],
         "sickness": ["sick", "syk", "sykefravær", "sykemeldt", "15-8", "oppsigelsesvern ved sykdom", "12 måneder"],
         "pregnancy_leave": ["pregnant", "pregnancy", "gravid", "graviditet", "parental", "foreldrepermisjon", "permisjon", "15-9", "fødsel", "adopsjon"],
-        "suspension": ["suspensjon", "suspendere", "15-13", "fratre under undersøkelse"],
+        "suspension": ["suspensjon", "suspendere", "suspend", "investigating misconduct", "15-13", "fratre under undersøkelse"],
         "summary_dismissal": ["avskjed", "avskjedige", "immediate", "gross misconduct", "without notice", "15-14", "grovt pliktbrudd"],
         "work_certificate": ["arbeidsattest", "attest", "15-15"],
         "dispute_deadlines": ["forhandling", "forhandlingsmøte", "søksmål", "søksmålsfrist", "17-3", "17-4", "stå i stilling", "tvist"],
@@ -34,7 +34,7 @@ def classify_intent(question: str) -> dict:
         "working_hours": ["arbeidstid", "alminnelig arbeidstid", "10-4", "hvor mange timer", "skift", "turnus", "pause", "10-9"],
         "overtime": ["overtid", "overtidsarbeid", "10-6", "overtidstillegg", "40 prosent", "pålagt overtid"],
         "holidays": ["ferie", "feriefritid", "ferieloven", "hovedferie", "3 uker", "feriedager", "25 virkedager"],
-        "holiday_pay": ["feriepenger", "feriepengeberegning", "10,2 prosent", "12,5 prosent", "sluttoppgjør feriepenger"],
+        "holiday_pay": ["feriepenger", "feriepengeberegning", "10,2 prosent", "10.2%", "10.2 percent", "12,5 prosent", "12.5%", "holiday pay", "holiday-pay", "vacation pay", "sluttoppgjør feriepenger"],
         "whistleblowing": ["varsle", "varsling", "kritikkverdige", "2a-1", "2a-2", "whistleblow"],
         "retaliation": ["gjengjeldelse", "2a-4", "reaksjon på varsling", "straff for å varsle"],
         "harassment": ["trakassering", "psykososialt", "arbeidsmiljø", "4-3", "mobbing", "utilbørlig"],
@@ -54,6 +54,11 @@ def classify_intent(question: str) -> dict:
         "disputes": ("tvist", "konflikt", "forhandling", "søksmål", "advokat", "retten"),
         "temporary_work": ("midlertidig", "innleie", "vikar", "bemanningsbyrå"),
     }
+
+    if matched_intent == "employee_status" and any(term in q for term in ("ferie", "feriedag", "ferieloven")):
+        matched_intent = "holidays"
+    if "verbal notice" in q:
+        matched_intent = "form_requirements"
 
     if matched_intent:
         if matched_intent in ("discussion_meeting", "mass_redundancy", "notice_period", "form_requirements", "probation", "justification", "suspension", "summary_dismissal", "work_certificate"):
@@ -87,6 +92,46 @@ def classify_intent(question: str) -> dict:
         "scope": domain != "unknown",
         "coverage": catalog or {"status": "unsupported"},
     }
+
+
+def build_response_plan(question: str) -> dict:
+    """Identify explicit requirements before retrieval and answer generation."""
+    q = question.lower()
+    holiday_pay = any(term in q for term in ("feriepenger", "feriepenge", "holiday pay", "holiday-pay", "vacation pay"))
+    asks_calculation = any(term in q for term in ("calculate", "beregn", "beregne", "how much", "hvor mye", "amount", "beløp")) or bool(re.search(r"\d[\d .]*\s*(nok|kr|kroner)|\d[\d,.]*\s*%", q))
+    asks_timing = any(term in q for term in ("when", "must it be paid", "payment", "paid", "utbetales", "utbetaling", "når", "frist"))
+    amount_matches = re.findall(r"(?:nok|kr|kroner)\s*([0-9]{1,3}(?:[,.][0-9]{3})+|[0-9][0-9 .]*(?:[,.][0-9]{1,2})?)|([0-9]{1,3}(?:[ .][0-9]{3})+(?:[,.][0-9]{1,2})?)\s*(?:nok|kr|kroner)", q)
+    amounts = [left or right for left, right in amount_matches]
+    if not amounts:
+        amounts = re.findall(r"([0-9]{1,3}(?:[,.][0-9]{3})+)\s*(?:nok|kr|kroner)", q)
+    rates = re.findall(r"([0-9]+(?:[,.][0-9]+)?)\s*(?:%|prosent|percent)", q)
+    plan = {"requested_outcome": question.strip(), "requirements": [], "facts": {}, "legal_issues": [], "required_sources": [], "calculation": None}
+    if holiday_pay:
+        plan["required_sources"] = ["Ferieloven § 10", "Ferieloven § 11"]
+        plan["legal_issues"] = ["calculation basis and statutory percentage", "normal payment timing"]
+        plan["false_premise"] = bool("all" in q and ("12%" in q or "12 %" in q or "12 prosent" in q))
+        plan["requirements"].append("explain holiday-pay basis and applicable statutory minimum rate")
+        if asks_timing:
+            plan["requirements"].append("explain when holiday pay is normally paid")
+        if asks_calculation and amounts and rates:
+            plan["requirements"].append("show the calculation and result")
+        elif asks_calculation and (("how much" in q and ("receive" in q or "will" in q or "får" in q)) or "what amount" in q or re.search(r"\bcalculate\b|\bberegn\b", q)):
+            plan["requirements"].append("request missing calculation inputs")
+        if amounts:
+            raw = amounts[0]
+            plan["facts"]["remuneration_nok"] = raw.replace(" ", "").replace(".", "") if " " in raw or (raw.count(".") == 1 and len(raw.split(".")[-1]) == 3) else raw
+        if rates:
+            plan["facts"]["rate_pct"] = rates[0]
+        if plan["facts"].get("remuneration_nok") and plan["facts"].get("rate_pct"):
+            plan["calculation"] = {"operation": "holiday_pay", "remuneration": plan["facts"]["remuneration_nok"], "rate_pct": plan["facts"]["rate_pct"]}
+    elif asks_calculation:
+        generic_amounts = re.findall(r"(?:nok|kr|kroner)\s*([0-9]{1,3}(?:[,.][0-9]{3})+|[0-9][0-9 .]*(?:[,.][0-9]{1,2})?)|([0-9]{1,3}(?:[,.][0-9]{3})+)\s*(?:nok|kr|kroner)", q)
+        generic_rates = rates
+        if generic_amounts and generic_rates:
+            raw_amount = next(left or right for left, right in generic_amounts)
+            plan["calculation"] = {"operation": "percentage", "remuneration": raw_amount, "rate_pct": generic_rates[0]}
+            plan["requirements"].append("show the calculation and result")
+    return plan
 
 
 def extract_case_signals(situation: str) -> dict:
@@ -129,6 +174,7 @@ def run_case_tools(case):
 
 def run_retrieval_workflow(question: str, top_k: int = 4) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     intent = classify_intent(question)
+    plan = build_response_plan(question)
     domain = intent.get("domain") if intent.get("domain") != "unknown" else None
     chunks = retrieve_chunks(question, top_k=top_k, domain=domain)
 
@@ -158,15 +204,20 @@ def run_retrieval_workflow(question: str, top_k: int = 4) -> Tuple[List[Dict[str
         "harassment": "§ 4-3",
     }
 
+    required_provisions = list(plan.get("required_sources", []))
     target_prov = provision_map.get(intent.get("intent"))
-    if target_prov and not any(target_prov in c["source_name"] for c in chunks):
-        exact_chunk = get_local_source(target_prov)
-        if exact_chunk:
-            chunks = [exact_chunk] + chunks[:top_k - 1]
+    if target_prov and target_prov not in required_provisions:
+        required_provisions.insert(0, target_prov)
+    for provision in required_provisions:
+        if not any(provision in c["source_name"] for c in chunks):
+            exact_chunk = get_local_source(provision)
+            if exact_chunk:
+                chunks = [exact_chunk] + chunks[:max(top_k - 1, 0)]
 
     return chunks, {
         "tools": ["classify_employment_question", "retrieve_legal_sources"],
         "intent": intent,
         "retrieved": len(chunks),
-        "source_guarantee": target_prov or "none",
+        "source_guarantee": required_provisions or (target_prov or "none"),
+        "response_plan": plan,
     }

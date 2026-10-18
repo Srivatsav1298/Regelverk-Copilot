@@ -6,6 +6,7 @@ and statutory checklists without model hallucination.
 
 from calendar import monthrange
 from datetime import date, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Any, Dict, List, Optional
 
 SUPPORTED_RULES = {
@@ -13,6 +14,7 @@ SUPPORTED_RULES = {
     "contract_check",
     "working_time_check",
     "holiday_check",
+    "holiday_pay_amount",
     "overtime_check",
     "notice_form_check",
     "sick_leave_timeline",
@@ -224,6 +226,34 @@ def calculate_holiday_details(*, salary_basis: Optional[float] = None, employee_
         result["estimated_holiday_pay_nok"] = amount
 
     return result
+
+
+def calculate_holiday_pay_amount(*, remuneration: object, rate_pct: object) -> dict:
+    """Calculate a supplied holiday-pay rate without floating-point money errors."""
+    try:
+        basis_text = str(remuneration).replace(" ", "").replace("NOK", "")
+        if "," in basis_text and len(basis_text.rsplit(",", 1)[1]) == 3:
+            basis_text = basis_text.replace(",", "")
+        elif "." in basis_text and len(basis_text.rsplit(".", 1)[1]) == 3:
+            basis_text = basis_text.replace(".", "")
+        else:
+            basis_text = basis_text.replace(",", ".")
+        basis = Decimal(basis_text)
+        rate = Decimal(str(rate_pct).replace("%", "").replace(",", "."))
+    except (InvalidOperation, ValueError, TypeError):
+        return {"status": "missing_or_invalid", "reason": "Provide a valid remuneration amount and percentage rate."}
+    if basis < 0 or rate < 0 or rate > 100:
+        return {"status": "missing_or_invalid", "reason": "Remuneration and the percentage rate must be non-negative, and the rate cannot exceed 100%."}
+    amount = (basis * rate / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    def money(value: Decimal) -> str:
+        return f"{value:,.0f}" if value == value.to_integral() else f"{value:,.2f}"
+    return {
+        "status": "calculated", "currency": "NOK", "remuneration_nok": float(basis),
+        "rate_pct": float(rate), "amount_nok": float(amount),
+        "amount_formatted": f"NOK {money(amount)}",
+        "formula": f"NOK {money(basis)} × {rate:g}% = NOK {money(amount)}",
+        "assumption": "The full supplied amount qualifies as the holiday-pay basis; the legal applicability of the supplied rate is assessed separately.",
+    }
 
 
 def check_termination_notice_form(contents: dict) -> dict:
@@ -639,6 +669,8 @@ def _translate_calculation_result(rule: str, result: dict, language: str) -> dic
 
 
 def calculate_employment_rule(rule: str, inputs: dict, language: str = "nb") -> dict:
+    if rule == "holiday_pay_amount":
+        return calculate_holiday_pay_amount(remuneration=inputs.get("remuneration"), rate_pct=inputs.get("rate_pct"))
     if rule == "notice_period":
         return _translate_calculation_result(rule, calculate_notice_period(
             years_employed=inputs.get("years_employed"),

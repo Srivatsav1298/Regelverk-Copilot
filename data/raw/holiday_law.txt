@@ -11,6 +11,11 @@
 
 ### SOURCE: Ferieloven § 10 | Beregning av feriepenger
 
-(1) Feriepenger fra arbeidsgiver beregnes på grunnlag av arbeidsvederlag som er utbetalt i opptjeningsåret. Feriepengeberegningen skal ikke omfatte utbetalinger som gjelder reiseutgifter, losji eller feriepenger utbetalt i opptjeningsåret.
-(2) Feriepengene skal utgjøre minst 10,2 prosent av feriepengegrunnlaget. For arbeidstaker over 60 år med rett til ekstraferie forhøyes prosentsatsen med 2,3 prosentpoeng til minst 12,5 prosent.
-(3) Feriepengene utbetales i forbindelse med at ferien avvikles, vanligvis i juni måned. Ved opphør av arbeidsforhold skal alle opptjente feriepenger utbetales på det ordinære sluttoppgjøret.
+(1) Feriepenger fra arbeidsgiver beregnes på grunnlag av arbeidsvederlag som er utbetalt i opptjeningsåret. Utbetalinger som gjelder dekning av utgifter, feriepenger utbetalt i opptjeningsåret og enkelte faste ytelser inngår ikke i feriepengegrunnlaget.
+(2) Arbeidstaker har rett til feriepenger fra arbeidsgiver med 10,2 prosent av feriepengegrunnlaget.
+(3) For arbeidstaker over 60 år med rett til ekstraferie etter § 5 nr. 2 forhøyes prosentsatsen med 2,3 prosentpoeng. Dette gir normalt 12,5 prosent for den aktuelle arbeidstakeren.
+
+### SOURCE: Ferieloven § 11 | Utbetaling av feriepenger
+
+(1) Feriepenger som er opptjent hos arbeidsgiver det foregående opptjeningsår, utbetales siste vanlige lønningsdag før ferien. Arbeidstaker kan likevel kreve at feriepengene utbetales senest 1 uke før ferien tar til. Deles ferien, skal feriepengene fordeles tilsvarende. Den delen som overstiger lønn for vanlig arbeidstid i ferien, kan likevel utbetales i forbindelse med hovedferien eller sammen med lønn for juni måned.
+(3) Opphører arbeidsforholdet, skal alle opptjente feriepenger utbetales siste vanlige lønningsdag før fratreden. Den delen som ikke lar seg beregne innen dette tidspunktet, kan utbetales i forbindelse med det avsluttende lønnsoppgjøret.

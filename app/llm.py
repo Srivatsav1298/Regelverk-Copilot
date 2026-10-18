@@ -4,6 +4,7 @@ import os
 from openai import OpenAI, RateLimitError, APIError
 from app.config import LLM_PROVIDER, OLLAMA_BASE_URL, OLLAMA_MODEL, REMOTE_MODEL
 from app.schemas import AskResponse, CaseAssessmentRequest, CaseAssessmentResponse
+from app.decision_tools import calculate_holiday_pay_amount
 
 logger = logging.getLogger("regelverk-copilot")
 _clients = {}
@@ -15,7 +16,7 @@ def _resolve_language(question: str, language: str) -> str:
     if language in ("en", "nb"):
         return language
     q = question.lower()
-    english_keywords = {"what", "how", "can", "is", "the", "who", "when", "why", "where", "should", "if", "does", "do", "i", "my", "employee", "fire", "terminate", "probation", "leave", "dismiss", "resignation"}
+    english_keywords = {"what", "how", "can", "is", "the", "who", "when", "why", "where", "should", "if", "does", "do", "i", "my", "employee", "fire", "terminate", "termination", "notice", "verbal", "writing", "suspend", "probation", "leave", "dismiss", "resignation"}
     words = set(q.replace("?", " ").replace(".", " ").replace(",", " ").split())
     if len(words.intersection(english_keywords)) >= 2 or any(w in words for w in {"what", "can", "how", "does", "fire"}):
         return "en"
@@ -167,7 +168,7 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
             if lang == "en" else
             "Avskjed med påbud om øyeblikkelig fratreden krever at arbeidstaker har gjort seg skyldig i grovt pliktbrudd eller annet vesentlig mislighold av arbeidsavtalen."
         )
-    elif any(t in q for t in ("notice period", "oppsigelsesfrist", "hvor lang oppsigelse")):
+    elif any(t in q for t in ("notice period", "oppsigelsesfrist", "hvor lang oppsigelse", "how long do i have to give notice", "before firing")) and "verbal notice" not in q:
         target = "§ 15-3"
         answer = (
             "The statutory mutual notice period is normally one month. It increases to at least two months after five years of continuous service, and three months after ten years. For employer dismissals after ten years, it is four months after age 50, five months after 55, and six months after 60. Probation normally has a 14-day notice period."
@@ -181,12 +182,18 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
             if lang == "en" else
             "En arbeidstaker kan ikke sies opp uten at det er saklig begrunnet i virksomhetens, arbeidsgivers eller arbeidstakers forhold. Ved nedbemanning må arbeidsgiver vurdere annet passende arbeid i virksomheten og konsernet, og foreta en interesseavveining."
         )
-    elif any(t in q for t in ("formkrav", "skriftlig", "formal requirements")):
+    elif any(t in q for t in ("formkrav", "skriftlig", "formal requirements", "verbal notice", "formfeil", "writing")) and "formfeil" not in q and "arbeidsavtale" not in q:
         target = "§ 15-4"
         answer = (
             "A dismissal must be in writing, delivered in person or sent by registered mail. It must inform the employee of their right to demand negotiations and legal proceedings, the applicable deadlines, and their right to remain in their post."
             if lang == "en" else
             "Oppsigelse skal skje skriftlig og leveres personlig eller sendes rekommandert. Den må opplyse om rett til forhandlinger og søksmål, relevante frister, samt retten til å fortsette i stillingen."
+        )
+    elif any(t in q for t in ("suspend", "suspensjon", "suspendere", "investigating misconduct")):
+        target = "§ 15-13"
+        answer = (
+            "An employer may suspend an employee while investigating conduct that may justify summary dismissal, when the undertaking's needs make it necessary. The suspension must be reviewed continuously, normally cannot last longer than three months, and the employee retains pay during the suspension." if lang == "en" else
+            "Arbeidsgiver kan suspendere en arbeidstaker under undersøkelsen når det er grunn til å anta at forholdet kan medføre avskjed og virksomhetens behov tilsier det. Suspensjonen skal vurderes løpende, kan normalt ikke vare lenger enn tre måneder, og arbeidstakeren beholder lønn i suspensjonstiden."
         )
     elif any(t in q for t in ("overtime", "overtid", "overtidstillegg")):
         target = "§ 10-6"
@@ -195,12 +202,24 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
             if lang == "en" else
             "Overtid er bare tillatt dersom det foreligger et særlig og tidsavgrenset behov. For overtidsarbeid skal det etter loven betales et overtidstillegg på minst 40 prosent."
         )
-    elif any(t in q for t in ("ferie", "feriepenger", "holiday")):
-        target = "Ferieloven"
+    elif any(t in q for t in ("feriedag", "feriedager", "holiday days", "annual holiday")):
+        target = "Ferieloven § 5"
         answer = (
-            "Under the Norwegian Annual Holidays Act, employees have a right to 25 weekdays of annual holiday (plus one extra week for employees aged 60+). Statutory holiday pay is at least 10.2 percent of qualifying remuneration (12.5 percent for employees over 60)."
+            "The Holidays Act gives employees 25 weekdays of holiday each holiday year. Employees who turn 60 during the holiday year have an additional six weekdays." if lang == "en" else
+            "Etter ferieloven har arbeidstaker rett til 25 virkedager feriefritid hvert ferieår. Arbeidstakere som fyller 60 år i løpet av ferieåret, har rett til ekstraferie på 6 virkedager."
+        )
+    elif any(t in q for t in ("ferie", "feriepenger", "holiday")):
+        target = "Ferieloven § 10"
+        answer = (
+            "Statutory holiday pay is 10.2 percent of qualifying remuneration. For employees over 60 with the statutory extra holiday, the rate is increased by 2.3 percentage points, normally 12.5 percent."
             if lang == "en" else
-            "Etter ferieloven har arbeidstaker rett til 25 virkedager feriefritid hvert år (og 6 ekstra virkedager fra det året man fyller 60). Lovfestet feriepengeberegning utgjør minst 10,2 prosent (12,5 prosent for de over 60 år)."
+            "Den alminnelige lovbestemte feriepenge­satsen er 10,2 prosent av feriepengegrunnlaget. For arbeidstakere over 60 år med lovbestemt ekstraferie forhøyes satsen med 2,3 prosentpoeng, normalt til 12,5 prosent."
+        )
+    elif any(t in q for t in ("gjengjeld", "retaliat")):
+        target = "§ 2A-4"
+        answer = (
+            "Retaliation against an employee who reports in accordance with the law is prohibited under section 2A-4. Retaliation includes adverse actions such as dismissal, suspension, changed duties, harassment or social exclusion." if lang == "en" else
+            "Gjengjeldelse mot en arbeidstaker som varsler i samsvar med loven, er forbudt etter § 2A-4. Gjengjeldelse omfatter blant annet oppsigelse, suspensjon, endring i arbeidsoppgaver, trakassering og sosial utstøting."
         )
     elif any(t in q for t in ("varsle", "varsling", "whistleblow")):
         target = "§ 2A-1"
@@ -217,6 +236,33 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
             "Arbeidstaker kan kreve forhandlingsmøte innen to uker etter mottatt oppsigelse. Søksmålsfristen er åtte uker fra forhandlingenes avslutning ved krav om ugyldighet eller å stå i stillingen, og seks måneder ved rent erstatningskrav."
         )
 
+    if target == "§ 17-3" and "erstatning" in q:
+        target = "§ 17-4"
+
+    elif any(t in q for t in ("arbeidsavtale", "contract", "employment agreement")):
+        target = "§ 14-6"
+        answer = (
+            "A written employment agreement must contain material information about the employment relationship, including the parties, workplace, job description, start date, pay and working time, holiday rights, notice periods and applicable collective agreements." if lang == "en" else
+            "En skriftlig arbeidsavtale skal inneholde opplysninger av vesentlig betydning, blant annet partenes identitet, arbeidssted, arbeidsoppgaver, startdato, lønn og arbeidstid, ferie- og oppsigelsesvilkår og eventuell tariffavtale."
+        )
+    elif any(t in q for t in ("midlertidig", "temporary", "fixed-term")):
+        target = "§ 14-9"
+        answer = (
+            "Permanent employment is the main rule. Temporary employment is permitted only on the statutory grounds, such as work of a temporary nature, a substitute position, or specified training or qualification arrangements." if lang == "en" else
+            "Fast ansettelse er hovedregelen. Midlertidig ansettelse kan bare avtales på lovens vilkår, blant annet for arbeid av midlertidig karakter, vikariat eller særskilte praksis- og opplæringsordninger."
+        )
+    elif any(t in q for t in ("alminnelig arbeidstid", "40 timer", "weekly working hours", "working time per week")):
+        target = "§ 10-4"
+        answer = (
+            "The ordinary working time must not exceed nine hours in 24 hours or 40 hours in seven days, subject to statutory exceptions for certain work arrangements." if lang == "en" else
+            "Den alminnelige arbeidstiden må ikke overstige ni timer i løpet av 24 timer og 40 timer i løpet av syv dager, med lovens unntak for enkelte arbeidsordninger."
+        )
+    elif any(t in q for t in ("formfeil", "formal defect")):
+        target = "§ 15-5"
+        answer = (
+            "If an employer's dismissal is not in writing or lacks mandatory information, the employee may have the dismissal declared invalid and may claim compensation under section 15-5, subject to the statutory conditions and deadlines." if lang == "en" else
+            "Hvis arbeidsgivers oppsigelse ikke er skriftlig eller mangler påbudte opplysninger, kan arbeidstakeren etter § 15-5 kreve oppsigelsen kjent ugyldig og kreve erstatning, med forbehold for lovens vilkår og frister."
+        )
     if not target or not answer:
         return None
 
@@ -230,15 +276,78 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
     )
 
 
-def generate_answer(question: str, chunks: list, language: str = "auto", audience: str = "employer") -> AskResponse:
+def _holiday_pay_answer(question: str, chunks: list, language: str, plan: dict) -> AskResponse | None:
+    """Answer holiday-pay plans deterministically from retrieved §10/§11 chunks."""
+    if not plan.get("required_sources"):
+        return None
+    lang = _resolve_language(question, language)
+    by_provision = {provision: next((c for c in chunks if provision in c.get("source_name", "")), None) for provision in plan["required_sources"]}
+    section10 = by_provision.get("Ferieloven § 10")
+    section11 = by_provision.get("Ferieloven § 11")
+    if not section10 or not section11:
+        return None
+    calculation = None
+    if plan.get("calculation"):
+        calculation = calculate_holiday_pay_amount(
+            remuneration=plan["calculation"]["remuneration"], rate_pct=plan["calculation"]["rate_pct"]
+        )
+        if calculation.get("status") != "calculated":
+            calculation = None
+    only_calculation = any(term in question.lower() for term in ("give only", "only the calculation", "kun beregning", "bare beregningen"))
+    citations = [
+        {"source_name": section10["source_name"], "excerpt": section10["chunk_text"]},
+        {"source_name": section11["source_name"], "excerpt": section11["chunk_text"]},
+    ]
+    if only_calculation and calculation:
+        return AskResponse(answer=calculation["formula"], citations=[], confidence="high", calculation_results={"holiday_pay": calculation})
+    if calculation:
+        if lang == "en":
+            answer = f"Direct result: {calculation['formula']}.\n\nAssumption: {calculation['assumption']}\n\nLegal rate and timing: Ferieloven § 10 provides 10.2% as the general statutory rate. For an employee over 60 with the statutory extra holiday, the rate is increased by 2.3 percentage points, normally 12.5%; 12% is therefore not universally required by statute. Under Ferieloven § 11, holiday pay earned in the previous accrual year is normally paid on the last ordinary payday before the holiday. The employee may require payment no later than one week before the holiday begins."
+        else:
+            answer = f"Direkte resultat: {calculation['formula']}.\n\nForutsetning: {calculation['assumption']}\n\nLovsats og tidspunkt: Ferieloven § 10 gir 10,2 prosent som den alminnelige lovbestemte satsen. For arbeidstakere over 60 år med lovbestemt ekstraferie forhøyes satsen med 2,3 prosentpoeng, normalt til 12,5 prosent. 12 prosent er derfor ikke universelt lovpålagt. Etter ferieloven § 11 utbetales feriepenger opptjent i det foregående opptjeningsåret normalt siste vanlige lønningsdag før ferien. Arbeidstakeren kan kreve utbetaling senest én uke før ferien begynner."
+    elif plan.get("requirements") and any(item in {"show the calculation and result", "request missing calculation inputs"} for item in plan["requirements"]):
+        if lang == "en":
+            answer = "I need the qualifying remuneration amount and the applicable percentage rate to calculate holiday pay."
+        else:
+            answer = "Jeg trenger beløpet som inngår i feriepengegrunnlaget og aktuell prosentsats for å beregne feriepengene."
+        return AskResponse(answer=answer, citations=citations, confidence="high", clarifying_questions=["What was the qualifying remuneration amount and which rate should be applied?"])
+    else:
+        if lang == "en":
+            answer = "Holiday pay is calculated from qualifying remuneration paid in the accrual year. The general statutory rate is 10.2%; for an employee over 60 with the statutory extra holiday, it is increased by 2.3 percentage points, normally 12.5%. Under Ferieloven § 11, it is normally paid on the last ordinary payday before the holiday, and the employee may require payment no later than one week before the holiday begins."
+        else:
+            answer = "Feriepenger beregnes av arbeidsvederlag som inngår i feriepengegrunnlaget og er utbetalt i opptjeningsåret. Den alminnelige lovbestemte satsen er 10,2 prosent. For arbeidstakere over 60 år med lovbestemt ekstraferie forhøyes satsen med 2,3 prosentpoeng, normalt til 12,5 prosent. Etter ferieloven § 11 utbetales feriepengene normalt siste vanlige lønningsdag før ferien, og arbeidstakeren kan kreve utbetaling senest én uke før ferien begynner."
+    return AskResponse(answer=answer, citations=citations, confidence="high", calculation_results={"holiday_pay": calculation} if calculation else {})
+
+
+def _generic_calculation_answer(plan: dict, language: str) -> AskResponse | None:
+    calculation = plan.get("calculation")
+    if not calculation or calculation.get("operation") != "percentage":
+        return None
+    result = calculate_holiday_pay_amount(remuneration=calculation.get("remuneration"), rate_pct=calculation.get("rate_pct"))
+    if result.get("status") != "calculated":
+        return AskResponse(answer="I need valid numeric inputs to calculate this." if language == "en" else "Jeg trenger gyldige tall for å beregne dette.", citations=[], confidence="low")
+    return AskResponse(answer=result["formula"], citations=[], confidence="high", calculation_results={"percentage": result})
+
+
+def generate_answer(question: str, chunks: list, language: str = "auto", audience: str = "employer", plan: dict | None = None) -> AskResponse:
     """Generates an answer grounded strictly in verified source chunks using the configured LLM."""
     lang = _resolve_language(question, language)
+    plan = plan or {}
+    generic_calculation = _generic_calculation_answer(plan, lang)
+    if generic_calculation:
+        generic_calculation.trace = {"response_plan": plan, "generation": "deterministic_arithmetic"}
+        return generic_calculation
     if not chunks:
         return _fallback(
             "I cannot find reviewed Norwegian statutory sources covering this question in the current knowledge engine."
             if lang == "en" else
             "Jeg fant ingen kvalitetssikrede kilder for dette spørsmålet i det indekserte regelverket."
         )
+
+    holiday_answer = _holiday_pay_answer(question, chunks, lang, plan)
+    if holiday_answer:
+        holiday_answer.trace = {"response_plan": plan, "generation": "deterministic_holiday_pay"}
+        return holiday_answer
 
     # Fast path for unit tests with synthetic chunks
     if any("Verified legal source excerpt." in c.get("chunk_text", "") for c in chunks):

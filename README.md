@@ -118,13 +118,23 @@ cp .env.example .env
 
 ### 3. Build Frontend & Run Backend
 ```bash
-# Build production React frontend bundle
-cd frontend && npm install && npm run build && cd ..
+# Install frontend dependencies
+npm --prefix frontend install
 
-# Launch FastAPI server
+# Start the frontend from the repository root
+npm run dev
+```
+
+In a second terminal, launch the backend:
+
+```bash
+
 ./venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
-Open **`http://localhost:8000`** in your browser.
+
+Open **`http://localhost:5173`** during development. The Vite frontend connects
+to the API on port 8000; set `VITE_API_BASE` if the API runs elsewhere. For the
+production bundle, run `npm run build` from the repository root.
 
 ---
 
