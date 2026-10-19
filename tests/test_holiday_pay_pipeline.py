@@ -21,6 +21,16 @@ def test_holiday_pay_example_calculates_and_explains_payment_timing():
     assert workflow["response_plan"]["calculation"]["remuneration"] == "600,000"
 
 
+def test_statutory_rate_is_derived_when_question_does_not_repeat_10_2_percent():
+    result, workflow = answer_for(
+        "An employee earned NOK 600,000 in qualifying remuneration last year. "
+        "Calculate their holiday pay using the statutory minimum rate and explain when it is paid."
+    )
+    assert "NOK 600,000 × 10.2% = NOK 61,200" in result.answer
+    assert "need" not in result.answer.lower()
+    assert workflow["response_plan"]["facts"]["rate_pct"] == "10.2"
+
+
 def test_holiday_pay_general_question_covers_rate_and_deadline():
     result, _ = answer_for("How is holiday pay calculated in Norway, what is the minimum statutory rate, and when must it normally be paid?")
     assert "10.2%" in result.answer

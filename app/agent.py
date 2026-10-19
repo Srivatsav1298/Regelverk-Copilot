@@ -105,6 +105,8 @@ def build_response_plan(question: str) -> dict:
     if not amounts:
         amounts = re.findall(r"([0-9]{1,3}(?:[,.][0-9]{3})+)\s*(?:nok|kr|kroner)", q)
     rates = re.findall(r"([0-9]+(?:[,.][0-9]+)?)\s*(?:%|prosent|percent)", q)
+    age_match = re.search(r"(?:age|alder|år|years old)\s*(?:is|er)?\s*(\d{2})", q)
+    employee_age = int(age_match.group(1)) if age_match else None
     plan = {"requested_outcome": question.strip(), "requirements": [], "facts": {}, "legal_issues": [], "required_sources": [], "calculation": None}
     if holiday_pay:
         plan["required_sources"] = ["Ferieloven § 10", "Ferieloven § 11"]
@@ -122,6 +124,9 @@ def build_response_plan(question: str) -> dict:
             plan["facts"]["remuneration_nok"] = raw.replace(" ", "").replace(".", "") if " " in raw or (raw.count(".") == 1 and len(raw.split(".")[-1]) == 3) else raw
         if rates:
             plan["facts"]["rate_pct"] = rates[0]
+        elif amounts and any(term in q for term in ("statutory", "legal minimum", "lovbestemt", "minimumssats", "minimum rate")):
+            plan["facts"]["rate_pct"] = "12.5" if employee_age is not None and employee_age >= 60 else "10.2"
+            plan["facts"]["rate_source"] = "Ferieloven § 10"
         if plan["facts"].get("remuneration_nok") and plan["facts"].get("rate_pct"):
             plan["calculation"] = {"operation": "holiday_pay", "remuneration": plan["facts"]["remuneration_nok"], "rate_pct": plan["facts"]["rate_pct"]}
     elif asks_calculation:

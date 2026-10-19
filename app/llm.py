@@ -378,6 +378,9 @@ CORE GROUNDING RULES:
 4. Specific numbers (days, months, percentages, hours) must match the source excerpts verbatim.
 5. Distinguish established rules from situations requiring individual professional counsel.
 6. If the sources do not directly address the question, clearly state this with confidence: "low".
+7. Extract every amount, percentage, date, age and condition from the user's question before asking for clarification. Never ask for a fact that is already supplied.
+8. If the user asks for a statutory rate and the retrieved source establishes it, derive the rate from the source instead of asking the user to provide it.
+9. Use the RESPONSE PLAN below to answer every listed requirement and apply its extracted facts.
 
 Return JSON ONLY with this exact structure:
 {{
@@ -391,6 +394,9 @@ Return JSON ONLY with this exact structure:
   "confidence": "high" or "low",
   "clarifying_questions": ["Any important missing facts or next steps to clarify"]
 }}
+
+RESPONSE PLAN:
+{json.dumps(plan, ensure_ascii=False)}
 
 SOURCES:
 {context}"""
