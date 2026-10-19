@@ -8,3 +8,6 @@ frontend/node_modules/
 frontend/dist/
 frontend/tsconfig.tsbuildinfo
 .DS_Store
+data/backups/
+data/source_monitor.json
+.claude-flow/

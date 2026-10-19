@@ -68,9 +68,11 @@ def check_official_sources(force: bool = False) -> Dict[str, Any]:
         url = source["official_url"]
         key = f"{source['provision']}|{url}"
         result = fetched[url]
+        if "error" in result:
+            unavailable.append({"provision": source["provision"], "url": url, "error": result["error"]})
+            sources[key] = {"provision": source["provision"], "url": url, "status": "unavailable", "error": result["error"]}
+            continue
         try:
-            if "error" in result:
-                raise requests.RequestException(result["error"])
             digest = result["digest"]
             old = previous.get("sources", {}).get(key, {})
             baseline = old.get("baseline_sha256", old.get("sha256", digest))
@@ -78,7 +80,7 @@ def check_official_sources(force: bool = False) -> Dict[str, Any]:
             if status == "changed":
                 changed.append({"provision": source["provision"], "url": url})
             sources[key] = {"provision": source["provision"], "url": url, "baseline_sha256": baseline, "sha256": digest, "status": status, "http_status": result["http_status"]}
-        except requests.RequestException as exc:
+        except (KeyError, TypeError) as exc:
             unavailable.append({"provision": source["provision"], "url": url, "error": type(exc).__name__})
             sources[key] = {"provision": source["provision"], "url": url, "status": "unavailable", "error": type(exc).__name__}
 

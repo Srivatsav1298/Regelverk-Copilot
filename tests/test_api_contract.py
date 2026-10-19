@@ -44,3 +44,15 @@ def test_source_freshness_unavailable_fails_closed(monkeypatch):
     assert payload["confidence"] == "low"
     assert payload["escalation_reasons"] == ["official_source_unavailable"]
     assert payload["citations"] == []
+
+
+def test_operational_metrics_require_admin_token(monkeypatch):
+    import app.main as main
+
+    monkeypatch.delenv("ADMIN_TOKEN", raising=False)
+    assert TestClient(main.app).get("/api/v1/metrics").status_code == 503
+
+    monkeypatch.setenv("ADMIN_TOKEN", "test-only-admin-token")
+    client = TestClient(main.app)
+    assert client.get("/api/v1/metrics").status_code == 401
+    assert client.get("/api/v1/metrics", headers={"Authorization": "Bearer test-only-admin-token"}).status_code == 200

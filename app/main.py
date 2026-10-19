@@ -2,6 +2,7 @@
 import time
 import json
 import os
+import secrets
 from pathlib import Path
 import logging
 from fastapi import FastAPI, HTTPException, Request, APIRouter
@@ -50,7 +51,7 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     if request.url.scheme == "https":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
@@ -81,8 +82,18 @@ def serve_ui():
     return FileResponse(built_index if built_index.exists() else "app/static/index.html")
 
 
+def require_admin(request: Request) -> None:
+    """Protect operational views; never expose a missing admin secret as public access."""
+    configured = os.getenv("ADMIN_TOKEN")
+    if not configured:
+        raise HTTPException(status_code=503, detail="Admin access is not configured.")
+    supplied = request.headers.get("authorization", "")
+    if not supplied.startswith("Bearer ") or not secrets.compare_digest(supplied[7:], configured):
+        raise HTTPException(status_code=401, detail="Admin authentication required.")
+
+
 @app.get("/dashboard")
-def serve_dashboard():
+def serve_dashboard(request: Request):
     return FileResponse("app/static/dashboard.html")
 
 
@@ -123,12 +134,14 @@ def tools_manifest():
 
 
 @app.get("/metrics")
-def metrics():
+def metrics(request: Request):
+    require_admin(request)
     return get_summary()
 
 
 @app.get("/evals")
-def evals():
+def evals(request: Request):
+    require_admin(request)
     return {"status": "available", "message": "Run eval/run_eval.py to populate a model evaluation report.", "corpus": corpus_metadata()}
 
 
@@ -349,8 +362,8 @@ def api_ready():
 
 
 @api_router.get("/metrics")
-def api_metrics():
-    return metrics()
+def api_metrics(request: Request):
+    return metrics(request)
 
 
 @api_router.get("/tools")
@@ -359,8 +372,8 @@ def api_tools():
 
 
 @api_router.get("/evals")
-def api_evals():
-    return evals()
+def api_evals(request: Request):
+    return evals(request)
 
 
 @api_router.post("/feedback")

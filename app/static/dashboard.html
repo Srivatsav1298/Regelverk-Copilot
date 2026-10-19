@@ -91,7 +91,10 @@
     <script>
         async function loadMetrics() {
             try {
-                const resp = await fetch("/metrics");
+                const token = window.prompt("Admin token");
+                if (!token) throw new Error("Admin token is required");
+                const resp = await fetch("/metrics", { headers: { "Authorization": "Bearer " + token } });
+                if (!resp.ok) throw new Error("Metrics request failed");
                 const data = await resp.json();
                 document.getElementById("loading").classList.add("hidden");
 
