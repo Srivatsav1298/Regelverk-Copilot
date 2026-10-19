@@ -17,6 +17,7 @@ def test_sick_leave_question_has_grounded_offline_fallback(monkeypatch):
     assert "12 months" in result.answer
     assert result.citations[0].source_name.endswith("Oppsigelsesvern ved sykdom")
     assert result.confidence == "high"
+    assert result.generation_mode == "deterministic_fallback"
     assert result.trace["fallback"] == "deterministic_legal_rule"
 
 

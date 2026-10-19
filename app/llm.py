@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from urllib.request import Request, urlopen
 from openai import OpenAI, RateLimitError, APIError
 from app.config import LLM_PROVIDER, OLLAMA_BASE_URL, OLLAMA_MODEL, REMOTE_MODEL
 from app.schemas import AskResponse, CaseAssessmentRequest, CaseAssessmentResponse
@@ -42,6 +43,20 @@ def _get_client() -> OpenAI:
 
 def _model() -> str:
     return OLLAMA_MODEL if provider_name() == "ollama" else REMOTE_MODEL
+
+
+def provider_diagnostics() -> dict:
+    """Return safe provider readiness information without exposing credentials."""
+    if provider_name() == "openrouter":
+        configured = bool(os.getenv("OPENROUTER_API_KEY"))
+        return {"provider": "openrouter", "configured": configured, "reachable": None if not configured else "not_checked", "action": None if configured else "Set OPENROUTER_API_KEY before deployment."}
+    endpoint = OLLAMA_BASE_URL.rstrip("/") + "/models"
+    try:
+        request = Request(endpoint, headers={"User-Agent": "RegelverkCopilot-health/1.0"})
+        with urlopen(request, timeout=2.0):
+            return {"provider": "ollama", "configured": True, "reachable": True, "model": OLLAMA_MODEL, "action": None}
+    except Exception as exc:
+        return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": type(exc).__name__, "action": "Start Ollama and ensure the configured model is installed."}
 
 
 def translate_to_norwegian(query: str) -> str:
@@ -117,8 +132,8 @@ def _safe_json(raw: str) -> dict:
     return json.loads(cleaned)
 
 
-def _fallback(message: str) -> AskResponse:
-    return AskResponse(answer=message, citations=[], confidence="low")
+def _fallback(message: str, generation_mode: str = "unavailable") -> AskResponse:
+    return AskResponse(answer=message, citations=[], confidence="low", generation_mode=generation_mode)
 
 
 def _first_sentence(text: str) -> str:
@@ -273,6 +288,7 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
         answer=answer,
         citations=[{"source_name": matching["source_name"], "excerpt": _first_sentence(matching["chunk_text"])}],
         confidence="high",
+        generation_mode="deterministic_fallback",
     )
 
 
@@ -299,7 +315,7 @@ def _holiday_pay_answer(question: str, chunks: list, language: str, plan: dict) 
         {"source_name": section11["source_name"], "excerpt": section11["chunk_text"]},
     ]
     if only_calculation and calculation:
-        return AskResponse(answer=calculation["formula"], citations=[], confidence="high", calculation_results={"holiday_pay": calculation})
+        return AskResponse(answer=calculation["formula"], citations=[], confidence="high", generation_mode="deterministic_calculation", calculation_results={"holiday_pay": calculation})
     if calculation:
         if lang == "en":
             answer = f"Direct result: {calculation['formula']}.\n\nAssumption: {calculation['assumption']}\n\nLegal rate and timing: Ferieloven § 10 provides 10.2% as the general statutory rate. For an employee over 60 with the statutory extra holiday, the rate is increased by 2.3 percentage points, normally 12.5%; 12% is therefore not universally required by statute. Under Ferieloven § 11, holiday pay earned in the previous accrual year is normally paid on the last ordinary payday before the holiday. The employee may require payment no later than one week before the holiday begins."
@@ -314,6 +330,7 @@ def _holiday_pay_answer(question: str, chunks: list, language: str, plan: dict) 
             answer=answer,
             citations=citations,
             confidence="high",
+            generation_mode="deterministic_fallback",
             clarifying_questions=[
                 "What was the qualifying remuneration amount and which rate should be applied?"
                 if lang == "en" else
@@ -325,7 +342,7 @@ def _holiday_pay_answer(question: str, chunks: list, language: str, plan: dict) 
             answer = "Holiday pay is calculated from qualifying remuneration paid in the accrual year. The general statutory rate is 10.2%; for an employee over 60 with the statutory extra holiday, it is increased by 2.3 percentage points, normally 12.5%. Under Ferieloven § 11, it is normally paid on the last ordinary payday before the holiday, and the employee may require payment no later than one week before the holiday begins."
         else:
             answer = "Feriepenger beregnes av arbeidsvederlag som inngår i feriepengegrunnlaget og er utbetalt i opptjeningsåret. Den alminnelige lovbestemte satsen er 10,2 prosent. For arbeidstakere over 60 år med lovbestemt ekstraferie forhøyes satsen med 2,3 prosentpoeng, normalt til 12,5 prosent. Etter ferieloven § 11 utbetales feriepengene normalt siste vanlige lønningsdag før ferien, og arbeidstakeren kan kreve utbetaling senest én uke før ferien begynner."
-    return AskResponse(answer=answer, citations=citations, confidence="high", calculation_results={"holiday_pay": calculation} if calculation else {})
+    return AskResponse(answer=answer, citations=citations, confidence="high", generation_mode="deterministic_fallback", calculation_results={"holiday_pay": calculation} if calculation else {})
 
 
 def _generic_calculation_answer(plan: dict, language: str) -> AskResponse | None:
@@ -335,7 +352,7 @@ def _generic_calculation_answer(plan: dict, language: str) -> AskResponse | None
     result = calculate_holiday_pay_amount(remuneration=calculation.get("remuneration"), rate_pct=calculation.get("rate_pct"))
     if result.get("status") != "calculated":
         return AskResponse(answer="I need valid numeric inputs to calculate this." if language == "en" else "Jeg trenger gyldige tall for å beregne dette.", citations=[], confidence="low")
-    return AskResponse(answer=result["formula"], citations=[], confidence="high", calculation_results={"percentage": result})
+    return AskResponse(answer=result["formula"], citations=[], confidence="high", generation_mode="deterministic_calculation", calculation_results={"percentage": result})
 
 
 def generate_answer(question: str, chunks: list, language: str = "auto", audience: str = "employer", plan: dict | None = None) -> AskResponse:
@@ -433,6 +450,7 @@ SOURCES:
         if not raw:
             raise ValueError("Empty response from LLM provider")
         parsed = _safe_json(raw)
+        parsed["generation_mode"] = "llm"
         return AskResponse(**parsed)
     except Exception as exc:
         logger.warning("LLM model call failed (%s: %s). Activating verified offline fallback.", type(exc).__name__, exc)

@@ -2,6 +2,7 @@
 
 import os
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.storage import init_storage, insert_chunk, get_db_connection, count_chunks
+from app.storage import DB_PATH, init_storage, insert_chunk, get_db_connection, count_chunks
 from app.embeddings import get_embedding
 
 RAW_DIR = PROJECT_ROOT / "data" / "raw"
@@ -63,7 +64,7 @@ def parse_raw_file(filepath: Path):
     return chunks
 
 
-def ingest_all(generate_embeddings: bool = True):
+def _ingest_all(generate_embeddings: bool = True):
     print("Initializing storage tables...")
     init_storage()
 
@@ -109,6 +110,22 @@ def ingest_all(generate_embeddings: bool = True):
         print(f"  -> Ingested {len(chunks)} chunks for {domain}.")
 
     print(f"\nIngestion finished successfully. Total indexed chunks: {count_chunks()}")
+
+
+def ingest_all(generate_embeddings: bool = True):
+    """Rebuild the corpus atomically, restoring the last valid index on failure."""
+    backup_path = DB_PATH.with_suffix(".db.ingest-backup")
+    had_existing_db = DB_PATH.exists()
+    if had_existing_db:
+        shutil.copy2(DB_PATH, backup_path)
+    try:
+        _ingest_all(generate_embeddings=generate_embeddings)
+    except Exception:
+        if had_existing_db and backup_path.exists():
+            shutil.copy2(backup_path, DB_PATH)
+        raise
+    finally:
+        backup_path.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":

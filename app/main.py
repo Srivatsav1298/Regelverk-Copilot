@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.schemas import AskRequest, AskResponse, CaseAssessmentRequest, CaseAssessmentResponse, BriefRequest, FeedbackRequest, CalculationRequest, CorrectionRequest, VisitRequest
 from app.agent import run_retrieval_workflow, extract_case_signals, run_case_tools
-from app.llm import generate_answer, generate_case_assessment, provider_name
+from app.llm import generate_answer, generate_case_assessment, provider_name, provider_diagnostics
 from app.tools import tool_manifest
 from app.verification import verify_citations
 from app.cache import get_cached_response, set_cached_response
@@ -50,6 +50,9 @@ async def security_headers(request: Request, call_next):
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:8000 http://127.0.0.1:8000; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    if request.url.scheme == "https":
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
 
 
@@ -94,7 +97,8 @@ def readiness_check():
     from app.config import runtime_config
     config = runtime_config()
     corpus = corpus_metadata()
-    return {"ready": True, "provider": provider_name(), "local_first": provider_name() == "ollama", "config": config, "corpus": corpus}
+    provider = provider_diagnostics()
+    return {"ready": provider.get("reachable") is True, "provider": provider_name(), "provider_diagnostics": provider, "local_first": provider_name() == "ollama", "config": config, "corpus": corpus}
 
 
 @app.get("/sources")
@@ -139,13 +143,18 @@ def ask(request: Request, ask_request: AskRequest):
     logger.info(f"Received question (length={len(ask_request.question)} chars)")
 
     source_status = source_freshness()
-    if source_status["status"] == "changed":
+    if source_status["status"] in {"changed", "unavailable"}:
         message = (
+            "I’m pausing source-verified answers because official-source freshness could not be confirmed. Please try again when the official sources are reachable."
+            if source_status["status"] == "unavailable" and ask_request.language == "en" else
+            "Jeg setter kildebekreftede svar på pause fordi det ikke var mulig å bekrefte at de offisielle kildene er oppdaterte. Prøv igjen når kildene er tilgjengelige."
+            if source_status["status"] == "unavailable" else
             "I’m pausing verified answers because an official source changed. The source must be re-ingested and reviewed before this question can be answered as current."
             if ask_request.language == "en" else
             "Jeg setter kvalitetssikrede svar på pause fordi en offisiell kilde er endret. Kilden må hentes inn på nytt og kvalitetssikres før spørsmålet kan besvares som gjeldende rett."
         )
-        result = AskResponse(answer=message, citations=[], confidence="low", escalation_level="urgent", escalation_reasons=["official_source_changed"], clarifying_questions=[])
+        reason = "official_source_unavailable" if source_status["status"] == "unavailable" else "official_source_changed"
+        result = AskResponse(answer=message, citations=[], confidence="low", generation_mode="unavailable", escalation_level="urgent", escalation_reasons=[reason], clarifying_questions=[])
         result.corpus = {**corpus_metadata(), "freshness_warning": True, "source_monitor": source_status}
         return result
 

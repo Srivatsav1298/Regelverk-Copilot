@@ -35,6 +35,7 @@ class AskResponse(BaseModel):
     answer: str
     citations: List[Citation]
     confidence: Literal["high", "low"]
+    generation_mode: Literal["llm", "deterministic_calculation", "deterministic_fallback", "unavailable"] = "llm"
     disclaimer: str = DISCLAIMER
     trace: Optional[dict] = None
     corpus: Optional[dict] = None

@@ -38,6 +38,7 @@ export interface Answer {
   answer: string;
   citations: Citation[];
   confidence: "high" | "low";
+  generation_mode?: "llm" | "deterministic_calculation" | "deterministic_fallback" | "unavailable";
   disclaimer: string;
   corpus?: Corpus;
   escalation_level?: "none" | "review" | "urgent";

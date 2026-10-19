@@ -23,3 +23,24 @@ def test_security_headers_are_present():
     response = client.get("/api/v1/health")
     assert response.headers["x-content-type-options"] == "nosniff"
     assert response.headers["x-frame-options"] == "DENY"
+    assert "default-src 'self'" in response.headers["content-security-policy"]
+
+
+def test_source_freshness_unavailable_fails_closed(monkeypatch):
+    import app.main as main
+
+    monkeypatch.setattr(main, "source_freshness", lambda: {
+        "status": "unavailable",
+        "verified_corpus_allowed": False,
+        "message": "official source unavailable",
+    })
+    response = TestClient(main.app).post("/api/v1/ask", json={
+        "question": "What is the statutory holiday pay rate?",
+        "language": "en",
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["generation_mode"] == "unavailable"
+    assert payload["confidence"] == "low"
+    assert payload["escalation_reasons"] == ["official_source_unavailable"]
+    assert payload["citations"] == []
