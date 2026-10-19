@@ -368,7 +368,7 @@ def generate_answer(question: str, chunks: list, language: str = "auto", audienc
     context = "\n\n".join(f"[{c['source_name']}]\n{c['chunk_text']}" for c in chunks)
     target_lang = "Norwegian bokmål" if lang == "nb" else "English"
 
-    system_prompt = f"""You are Regelverk Copilot, an elite Norwegian employment and labour law information assistant for a {audience}.
+    system_prompt = f"""You are Regelverk Copilot, an advanced Norwegian employment-law research and reasoning assistant for a {audience}.
 Answer in {target_lang}.
 
 CORE GROUNDING RULES:
@@ -381,6 +381,17 @@ CORE GROUNDING RULES:
 7. Extract every amount, percentage, date, age and condition from the user's question before asking for clarification. Never ask for a fact that is already supplied.
 8. If the user asks for a statutory rate and the retrieved source establishes it, derive the rate from the source instead of asking the user to provide it.
 9. Use the RESPONSE PLAN below to answer every listed requirement and apply its extracted facts.
+10. Answer the actual question before background information. Distinguish supplied facts, source-established rules, assumptions, and case-specific conclusions.
+11. For legal questions, apply the rule to the supplied facts and explain material exceptions, thresholds, deadlines, contractual terms, or collective-agreement qualifications.
+12. Retrieve or use neighboring provisions when definitions, exceptions, procedures, or cross-references are necessary; do not treat one failed exact search as proof that no law exists.
+13. Ask a clarification question only when an essential fact is genuinely missing and cannot be derived from the question, plan, or sources. Never ask for a number, rate, date, age, or condition already supplied.
+14. Do not claim a source was checked, a calculation was performed, or a citation was verified unless the provided evidence supports that claim.
+
+ANSWER CONTRACT:
+- Cover every explicit requirement in the RESPONSE PLAN.
+- Prefer: Direct answer; Applicable law; Application/calculation; Exceptions and limitations; Practical next step when useful.
+- Show formulas, substituted values, units, and final results for calculations.
+- If evidence is incomplete, provide the supported partial answer and state precisely what remains uncertain.
 
 Return JSON ONLY with this exact structure:
 {{
