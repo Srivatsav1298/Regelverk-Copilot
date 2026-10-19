@@ -71,3 +71,4 @@ def test_api_returns_calculation_and_official_source_urls(monkeypatch):
     payload = response.json()
     assert "NOK 600,000 × 10.2% = NOK 61,200" in payload["answer"]
     assert all(item["url"] == "https://lovdata.no/lov/1988-04-29-21" for item in payload["citations"])
+    assert all(item["verified"] is True for item in payload["citations"])

@@ -310,7 +310,16 @@ def _holiday_pay_answer(question: str, chunks: list, language: str, plan: dict) 
             answer = "I need the qualifying remuneration amount and the applicable percentage rate to calculate holiday pay."
         else:
             answer = "Jeg trenger beløpet som inngår i feriepengegrunnlaget og aktuell prosentsats for å beregne feriepengene."
-        return AskResponse(answer=answer, citations=citations, confidence="high", clarifying_questions=["What was the qualifying remuneration amount and which rate should be applied?"])
+        return AskResponse(
+            answer=answer,
+            citations=citations,
+            confidence="high",
+            clarifying_questions=[
+                "What was the qualifying remuneration amount and which rate should be applied?"
+                if lang == "en" else
+                "Hva var beløpet som inngår i feriepengegrunnlaget, og hvilken prosentsats skal brukes?"
+            ],
+        )
     else:
         if lang == "en":
             answer = "Holiday pay is calculated from qualifying remuneration paid in the accrual year. The general statutory rate is 10.2%; for an employee over 60 with the statutory extra holiday, it is increased by 2.3 percentage points, normally 12.5%. Under Ferieloven § 11, it is normally paid on the last ordinary payday before the holiday, and the employee may require payment no later than one week before the holiday begins."

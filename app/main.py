@@ -191,6 +191,8 @@ def ask(request: Request, ask_request: AskRequest):
     result.related_topics = [item["domain"] for item in topic_catalog() if item["domain"] != result.domain][:3]
 
     verification_results = verify_citations(result.citations, chunks)
+    for item in verification_results:
+        item["citation"].verified = item["verified"]
     unverified_count = sum(1 for v in verification_results if not v["verified"])
 
     if unverified_count > 0:
