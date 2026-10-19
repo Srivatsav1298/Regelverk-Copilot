@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ask, assess, brief, getTopics, sendCorrection, recordVisit, getFreshness } from "./api";
+import { ask, assess, brief, getTopics, sendCorrection, recordVisit, getFreshness, type ConversationTurn } from "./api";
 import type { Answer, Assessment, Audience, CaseInput, Language, Topic, Workflow, ActiveTab } from "./types";
 import { CategorySelector } from "./components/CategorySelector";
 import { LegalCalculators } from "./components/LegalCalculators";
@@ -45,6 +45,7 @@ export default function App() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [dailyVisitors, setDailyVisitors] = useState<number | null>(null);
   const [sourceStatus, setSourceStatus] = useState<string | null>(null);
+  const [conversationContext, setConversationContext] = useState<ConversationTurn[]>([]);
 
   useEffect(() => {
     getTopics()
@@ -162,8 +163,13 @@ export default function App() {
     setError("");
     setAnswer(null);
     try {
-      const res = await ask(query, language, audience);
+      const res = await ask(query, language, audience, conversationContext);
       setAnswer(res);
+      setConversationContext((previous) => [
+        ...previous,
+        { role: "user" as const, content: query },
+        { role: "assistant" as const, content: res.answer },
+      ].slice(-8));
     } catch {
       setError(language === "nb" ? "Kunne ikke nå tjenesten. Prøv igjen." : "Could not reach the service. Try again.");
     } finally {

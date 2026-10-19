@@ -82,3 +82,44 @@ def test_api_returns_calculation_and_official_source_urls(monkeypatch):
     assert "NOK 600,000 × 10.2% = NOK 61,200" in payload["answer"]
     assert all(item["url"] == "https://lovdata.no/lov/1988-04-29-21" for item in payload["citations"])
     assert all(item["verified"] is True for item in payload["citations"])
+
+
+def test_api_follow_up_reuses_supplied_facts_without_reasking(monkeypatch):
+    from fastapi.testclient import TestClient
+    import app.main as main
+
+    monkeypatch.setattr(main, "source_freshness", lambda: {"status": "current", "verified_corpus_allowed": True})
+    response = TestClient(main.app).post("/api/v1/ask", json={
+        "question": "When must it normally be paid?",
+        "language": "en",
+        "conversation_context": [
+            {"role": "user", "content": "An employee earned NOK 600,000 in qualifying remuneration last year. Calculate holiday pay at 10.2%."},
+            {"role": "assistant", "content": "The calculation is NOK 61,200."},
+        ],
+        "include_trace": True,
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert "NOK 600,000 × 10.2% = NOK 61,200" in payload["answer"]
+    assert "last ordinary payday before the holiday" in payload["answer"]
+    assert payload["trace"]["response_plan"]["context_used"] is True
+    assert payload["clarifying_questions"] == []
+
+
+def test_api_distinguishes_retrieval_outage_from_missing_law(monkeypatch):
+    from fastapi.testclient import TestClient
+    import app.main as main
+
+    monkeypatch.setattr(main, "source_freshness", lambda: {"status": "current", "verified_corpus_allowed": True})
+    monkeypatch.setattr("app.agent.retrieve_chunks", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("index offline")))
+    monkeypatch.setattr("app.agent.get_local_source", lambda *args, **kwargs: None)
+    response = TestClient(main.app).post("/api/v1/ask", json={
+        "question": "What is the statutory holiday pay rate?",
+        "language": "en",
+        "include_trace": True,
+    })
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["escalation_reasons"] == ["retrieval_unavailable"]
+    assert "source-backed legal conclusion" in payload["answer"]
+    assert payload["trace"]["retrieval_status"] == "unavailable"

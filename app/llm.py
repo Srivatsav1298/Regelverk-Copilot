@@ -412,6 +412,9 @@ Return JSON ONLY with this exact structure:
 RESPONSE PLAN:
 {json.dumps(plan, ensure_ascii=False)}
 
+CONVERSATION CONTEXT:
+{json.dumps(plan.get("conversation_context", []), ensure_ascii=False)}
+
 SOURCES:
 {context}"""
 

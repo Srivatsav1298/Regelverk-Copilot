@@ -1,5 +1,5 @@
 # pyrefly: ignore [missing-import]
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Any, Dict, List, Literal, Optional
 
 DISCLAIMER = (
@@ -16,6 +16,11 @@ class Citation(BaseModel):
     source_status: Optional[Literal["supported", "under_review", "planned"]] = None
 
 
+class ConversationTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
 class AskRequest(BaseModel):
     question: str
     language: Literal["auto", "nb", "en"] = "auto"
@@ -23,6 +28,7 @@ class AskRequest(BaseModel):
     include_trace: bool = False
     domain: Optional[str] = None
     as_of_date: Optional[str] = None
+    conversation_context: List[ConversationTurn] = Field(default_factory=list, max_length=8)
 
 
 class AskResponse(BaseModel):

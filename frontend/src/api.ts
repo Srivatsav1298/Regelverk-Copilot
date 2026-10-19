@@ -19,10 +19,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export const ask = (question: string, language: Language, audience: Audience) =>
+export type ConversationTurn = { role: "user" | "assistant"; content: string };
+
+export const ask = (question: string, language: Language, audience: Audience, conversationContext: ConversationTurn[] = []) =>
   request<Answer>("/api/v1/ask", {
     method: "POST",
-    body: JSON.stringify({ question, language, audience }),
+    body: JSON.stringify({ question, language, audience, conversation_context: conversationContext.slice(-8) }),
   });
 
 export const assess = (input: CaseInput) =>

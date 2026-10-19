@@ -149,7 +149,8 @@ def ask(request: Request, ask_request: AskRequest):
         result.corpus = {**corpus_metadata(), "freshness_warning": True, "source_monitor": source_status}
         return result
 
-    cache_context = json.dumps({"audience": ask_request.audience, "domain": ask_request.domain, "as_of_date": ask_request.as_of_date}, sort_keys=True)
+    context_payload = [turn.model_dump() for turn in ask_request.conversation_context]
+    cache_context = json.dumps({"audience": ask_request.audience, "domain": ask_request.domain, "as_of_date": ask_request.as_of_date, "conversation_context": context_payload}, sort_keys=True)
     cached = None if ask_request.include_trace else get_cached_response(f"{ask_request.language}:{ask_request.question}", cache_context)
     if cached is not None:
         logger.info("Cache hit — returning cached response")
@@ -164,12 +165,24 @@ def ask(request: Request, ask_request: AskRequest):
 
     logger.info("Cache miss — calling retrieval + generation")
     start = time.perf_counter()
-    chunks, workflow = run_retrieval_workflow(ask_request.question, top_k=4)
+    chunks, workflow = run_retrieval_workflow(ask_request.question, top_k=4, conversation_context=context_payload)
     intent = workflow["intent"]
     coverage = intent.get("coverage", {})
 
     # Only reject if domain is planned and no supported chunks were retrieved, or no chunks matched
     response_plan = workflow.get("response_plan", {})
+    if not chunks and workflow.get("retrieval_status") == "unavailable":
+        unavailable_answer = (
+            "I couldn’t access the reviewed legal source index right now, so I have not generated a source-backed legal conclusion. Please try again shortly."
+            if ask_request.language == "en" else
+            "Jeg fikk ikke tilgang til det kvalitetssikrede lovverksregisteret akkurat nå, og har derfor ikke laget en kildebasert juridisk konklusjon. Prøv igjen om litt."
+        )
+        result = AskResponse(answer=unavailable_answer, citations=[], confidence="low", domain=intent.get("domain"), subtopic=intent.get("intent"), escalation_level="review", escalation_reasons=["retrieval_unavailable"], clarifying_questions=[])
+        result.corpus = corpus_metadata()
+        if ask_request.include_trace:
+            result.trace = workflow
+        record_request(question_length=len(ask_request.question), cache_hit=False, confidence="low", latency_ms=(time.perf_counter()-start)*1000, provider=provider_name(), metadata={"retrieval_unavailable": True}, tools=workflow["tools"])
+        return result
     if not chunks and (coverage.get("status") == "planned" or intent.get("domain") == "unknown") and not response_plan.get("calculation"):
         result = AskResponse(
             answer="I can’t safely answer this from the reviewed employment-law sources currently available. Choose a supported topic or consult a qualified adviser for this question." if ask_request.language == "en" else "Jeg kan ikke svare trygt på dette med de kvalitetssikrede arbeidsrettskildene som er tilgjengelige nå. Velg et støttet tema eller kontakt en kvalifisert rådgiver.",

@@ -5,14 +5,19 @@ for direct API invocation and MCP endpoints.
 """
 
 import re
+import logging
 from typing import Any, Dict, List, Tuple
 from app.retrieval import retrieve_chunks, get_local_source
 from app.decision_tools import calculate_notice_period, check_missing_information, detect_protected_situation, build_risk
 from app.source_manifest import DOMAIN_CATALOG
 
+logger = logging.getLogger("regelverk-copilot.agent")
 
-def classify_intent(question: str) -> dict:
-    q = question.lower()
+
+def classify_intent(question: str, conversation_context: list[dict] | None = None) -> dict:
+    conversation_context = conversation_context or []
+    prior_user_text = " ".join(turn.get("content", "") for turn in conversation_context if turn.get("role") == "user")
+    q = f"{prior_user_text} {question}".lower()
 
     # Detailed intent mapping covering termination, contracts, working hours, leave, holidays, disputes, workplace rights
     topics = {
@@ -94,9 +99,11 @@ def classify_intent(question: str) -> dict:
     }
 
 
-def build_response_plan(question: str) -> dict:
+def build_response_plan(question: str, conversation_context: list[dict] | None = None) -> dict:
     """Identify explicit requirements before retrieval and answer generation."""
-    q = question.lower()
+    conversation_context = conversation_context or []
+    prior_user_text = " ".join(turn.get("content", "") for turn in conversation_context if turn.get("role") == "user")
+    q = f"{prior_user_text} {question}".lower()
     holiday_pay = any(term in q for term in ("feriepenger", "feriepenge", "holiday pay", "holiday-pay", "vacation pay"))
     asks_calculation = any(term in q for term in ("calculate", "beregn", "beregne", "how much", "hvor mye", "amount", "beløp")) or bool(re.search(r"\d[\d .]*\s*(nok|kr|kroner)|\d[\d,.]*\s*%", q))
     asks_timing = any(term in q for term in ("when", "must it be paid", "payment", "paid", "utbetales", "utbetaling", "når", "frist"))
@@ -107,7 +114,7 @@ def build_response_plan(question: str) -> dict:
     rates = re.findall(r"([0-9]+(?:[,.][0-9]+)?)\s*(?:%|prosent|percent)", q)
     age_match = re.search(r"(?:age|alder|år|years old)\s*(?:is|er)?\s*(\d{2})", q)
     employee_age = int(age_match.group(1)) if age_match else None
-    plan = {"requested_outcome": question.strip(), "requirements": [], "facts": {}, "legal_issues": [], "required_sources": [], "calculation": None}
+    plan = {"requested_outcome": question.strip(), "requirements": [], "facts": {}, "legal_issues": [], "required_sources": [], "calculation": None, "context_used": bool(prior_user_text), "conversation_context": conversation_context[-8:]}
     if holiday_pay:
         plan["required_sources"] = ["Ferieloven § 10", "Ferieloven § 11"]
         plan["legal_issues"] = ["calculation basis and statutory percentage", "normal payment timing"]
@@ -177,11 +184,22 @@ def run_case_tools(case):
     return {"facts": extract_case_facts(case), "missing": missing, "protected": protected, "notice": notice, "risk": risk}
 
 
-def run_retrieval_workflow(question: str, top_k: int = 4) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
-    intent = classify_intent(question)
-    plan = build_response_plan(question)
+def run_retrieval_workflow(question: str, top_k: int = 4, conversation_context: list[dict] | None = None) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    conversation_context = conversation_context or []
+    prior_user_text = " ".join(turn.get("content", "") for turn in conversation_context if turn.get("role") == "user")
+    retrieval_question = f"{question} {prior_user_text}".strip()
+    intent = classify_intent(question, conversation_context)
+    plan = build_response_plan(question, conversation_context)
     domain = intent.get("domain") if intent.get("domain") != "unknown" else None
-    chunks = retrieve_chunks(question, top_k=top_k, domain=domain)
+    retrieval_status = "retrieved"
+    try:
+        chunks = retrieve_chunks(retrieval_question, top_k=top_k, domain=domain)
+    except Exception as exc:
+        logger.warning("Legal source retrieval failed (%s: %s)", type(exc).__name__, exc)
+        chunks = []
+        retrieval_status = "unavailable"
+    if not chunks and retrieval_status != "unavailable":
+        retrieval_status = "no_match"
 
     # Provision guarantees for known intents
     provision_map = {
@@ -225,4 +243,6 @@ def run_retrieval_workflow(question: str, top_k: int = 4) -> Tuple[List[Dict[str
         "retrieved": len(chunks),
         "source_guarantee": required_provisions or (target_prov or "none"),
         "response_plan": plan,
+        "retrieval_query": retrieval_question,
+        "retrieval_status": retrieval_status,
     }
