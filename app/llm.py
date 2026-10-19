@@ -190,7 +190,7 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
             if lang == "en" else
             "Den lovbestemte gjensidige oppsigelsesfristen er normalt én måned. Den øker til minst to måneder etter fem års ansettelse og minst tre måneder etter ti år. Ved oppsigelse fra arbeidsgiver etter ti år er fristen fire måneder etter fylte 50 år, fem måneder etter 55 år og seks måneder etter 60 år. Prøvetid har normalt 14 dagers frist."
         )
-    elif any(t in q for t in ("valid reason", "specific cause", "saklig", "saklig begrunnelse", "nedbemanning")):
+    elif any(t in q for t in ("valid reason", "specific cause", "objective justification", "objectively justified", "saklig", "saklig begrunnelse", "nedbemanning", "downsizing")):
         target = "§ 15-7"
         answer = (
             "An employee cannot be dismissed without an objectively justified reason connected to the undertaking, the employer, or the employee. In redundancies, the employer must assess alternative suitable work across the company and corporate group, and balance business needs against employee disadvantage."
@@ -271,6 +271,13 @@ def _deterministic_answer(question: str, chunks: list, language: str) -> AskResp
         answer = (
             "The ordinary working time must not exceed nine hours in 24 hours or 40 hours in seven days, subject to statutory exceptions for certain work arrangements." if lang == "en" else
             "Den alminnelige arbeidstiden må ikke overstige ni timer i løpet av 24 timer og 40 timer i løpet av syv dager, med lovens unntak for enkelte arbeidsordninger."
+        )
+    elif any(t in q for t in ("rest period", "rest periods", "daily and weekly rest", "daglig og ukentlig arbeidsfri", "11 hours", "35 hours")):
+        target = "§ 10-8"
+        answer = (
+            "An employee is normally entitled to at least 11 consecutive hours of daily rest and 35 consecutive hours of weekly rest, subject to statutory exceptions and permitted arrangements."
+            if lang == "en" else
+            "Arbeidstaker har normalt krav på minst 11 sammenhengende timer daglig arbeidsfri og 35 sammenhengende timer ukentlig arbeidsfri, med forbehold for lovens unntak og tillatte ordninger."
         )
     elif any(t in q for t in ("formfeil", "formal defect")):
         target = "§ 15-5"
