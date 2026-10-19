@@ -24,6 +24,12 @@ curl -sS https://YOUR_HOST/api/v1/ready
 
 For OpenRouter, configure `LLM_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, and `REMOTE_MODEL` in the server secret store. Never put these in frontend variables or Git.
 
+Run the real, non-sensitive provider check:
+
+```bash
+./venv/bin/python scripts/provider_integration_test.py
+```
+
 ## 3. Lovdata freshness
 
 Run from a network that is permitted to access the official URLs:

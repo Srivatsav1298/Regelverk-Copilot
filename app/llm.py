@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 from openai import OpenAI, RateLimitError, APIError
 from app.config import LLM_PROVIDER, OLLAMA_BASE_URL, OLLAMA_MODEL, REMOTE_MODEL
 from app.schemas import AskResponse, CaseAssessmentRequest, CaseAssessmentResponse
@@ -53,10 +54,23 @@ def provider_diagnostics() -> dict:
     endpoint = OLLAMA_BASE_URL.rstrip("/") + "/models"
     try:
         request = Request(endpoint, headers={"User-Agent": "RegelverkCopilot-health/1.0"})
-        with urlopen(request, timeout=2.0):
-            return {"provider": "ollama", "configured": True, "reachable": True, "model": OLLAMA_MODEL, "action": None}
+        with urlopen(request, timeout=2.0) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        names = {item.get("id") or item.get("name") for item in payload.get("data", payload.get("models", [])) if isinstance(item, dict)}
+        if names and OLLAMA_MODEL not in names and OLLAMA_MODEL.split(":", 1)[0] not in names:
+            return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": "model_not_found", "available_models": sorted(name for name in names if name), "action": f"Install the configured model with: ollama pull {OLLAMA_MODEL}"}
+        return {"provider": "ollama", "configured": True, "reachable": True, "model": OLLAMA_MODEL, "action": None}
+    except HTTPError as exc:
+        error_type = "authentication_failed" if exc.code in {401, 403} else "provider_unavailable" if exc.code >= 500 else "provider_http_error"
+        return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": error_type, "http_status": exc.code, "action": "Check the provider endpoint and credentials/model configuration."}
+    except TimeoutError:
+        return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": "request_timeout", "action": "Ensure Ollama is running and reachable within the readiness timeout."}
+    except URLError as exc:
+        return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": "network_failure", "reason": type(exc.reason).__name__ if exc.reason else None, "action": "Start Ollama and verify the configured endpoint is reachable."}
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": "malformed_provider_response", "action": "Check that the configured endpoint is an Ollama-compatible API."}
     except Exception as exc:
-        return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": type(exc).__name__, "action": "Start Ollama and ensure the configured model is installed."}
+        return {"provider": "ollama", "configured": True, "reachable": False, "model": OLLAMA_MODEL, "error_type": type(exc).__name__, "action": "Check the provider endpoint and model configuration."}
 
 
 def translate_to_norwegian(query: str) -> str:
