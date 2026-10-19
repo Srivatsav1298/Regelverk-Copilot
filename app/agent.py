@@ -26,7 +26,7 @@ def classify_intent(question: str, conversation_context: list[dict] | None = Non
         "notice_period": ["notice", "oppsigelsesfrist", "oppsigelsestid", "15-3", "frister", "hvor lang frist", "ansiennitet"],
         "form_requirements": ["formkrav", "skriftlig oppsigelse", "verbal notice", "15-4", "formfeil", "15-5", "rekommandert", "hva må stå i oppsigelsen", "writing"],
         "probation": ["probation", "prøvetid", "15-6", "oppsigelse i prøvetid", "prøvetidsperiode"],
-        "justification": ["saklig", "saklig grunn", "usaklig", "nedbemanning", "15-7", "driftsinnskrenkning", "valid reason", "cause", "annet passende arbeid"],
+        "justification": ["saklig", "saklig grunn", "usaklig", "nedbemanning", "downsizing", "15-7", "driftsinnskrenkning", "valid reason", "objective justification", "objectively justified", "cause", "annet passende arbeid"],
         "sickness": ["sick", "syk", "sykefravær", "sykemeldt", "15-8", "oppsigelsesvern ved sykdom", "12 måneder"],
         "pregnancy_leave": ["pregnant", "pregnancy", "gravid", "graviditet", "parental", "foreldrepermisjon", "permisjon", "15-9", "fødsel", "adopsjon"],
         "suspension": ["suspensjon", "suspendere", "suspend", "investigating misconduct", "15-13", "fratre under undersøkelse"],
@@ -35,8 +35,8 @@ def classify_intent(question: str, conversation_context: list[dict] | None = Non
         "dispute_deadlines": ["forhandling", "forhandlingsmøte", "søksmål", "søksmålsfrist", "17-3", "17-4", "stå i stilling", "tvist"],
         "contract_requirements": ["arbeidsavtale", "kontrakt", "ansettelseskontrakt", "14-5", "14-6", "hva må en kontrakt inneholde"],
         "employee_status": ["oppdragstaker", "arbeidstaker", "konsulent eller ansatt", "1-8", "selvstendig næringsdrivende"],
-        "temporary_work": ["midlertidig", "vikar", "vikariat", "14-9", "fast ansettelse", "3-årsregel", "4-årsregel"],
-        "working_hours": ["arbeidstid", "alminnelig arbeidstid", "10-4", "hvor mange timer", "skift", "turnus", "pause", "10-9"],
+        "temporary_work": ["midlertidig", "temporary employment", "fixed-term", "vikar", "vikariat", "14-9", "fast ansettelse", "3-årsregel", "4-årsregel"],
+        "working_hours": ["arbeidstid", "working-time", "alminnelig arbeidstid", "10-4", "10-8", "hvor mange timer", "rest period", "rest periods", "daily and weekly rest", "skift", "turnus", "pause", "10-9"],
         "overtime": ["overtid", "overtidsarbeid", "10-6", "overtidstillegg", "40 prosent", "pålagt overtid"],
         "holidays": ["ferie", "feriefritid", "ferieloven", "hovedferie", "3 uker", "feriedager", "25 virkedager"],
         "holiday_pay": ["feriepenger", "feriepengeberegning", "10,2 prosent", "10.2%", "10.2 percent", "12,5 prosent", "12.5%", "holiday pay", "holiday-pay", "vacation pay", "sluttoppgjør feriepenger"],
@@ -46,6 +46,10 @@ def classify_intent(question: str, conversation_context: list[dict] | None = Non
     }
 
     matched_intent = next((name for name, terms in topics.items() if any(term in q for term in terms)), None)
+
+    # Historical wording is outside the current corpus unless an as-of version is supplied.
+    if any(term in q for term in ("historical", "in 2015", "in 2016", "as it was", "exact wording")):
+        matched_intent = None
 
     # General domain keywords
     domain_terms = {
@@ -57,7 +61,7 @@ def classify_intent(question: str, conversation_context: list[dict] | None = Non
         "sickness": ("syk", "sykefravær", "egenmelding", "sykemelding"),
         "workplace_rights": ("varsling", "trakassering", "arbeidsmiljø", "hms", "mobbing"),
         "disputes": ("tvist", "konflikt", "forhandling", "søksmål", "advokat", "retten"),
-        "temporary_work": ("midlertidig", "innleie", "vikar", "bemanningsbyrå"),
+        "temporary_work": ("midlertidig", "temporary employment", "fixed-term", "temporary", "innleie", "vikar", "bemanningsbyrå"),
     }
 
     if matched_intent == "employee_status" and any(term in q for term in ("ferie", "feriedag", "ferieloven")):
@@ -114,7 +118,7 @@ def build_response_plan(question: str, conversation_context: list[dict] | None =
     rates = re.findall(r"([0-9]+(?:[,.][0-9]+)?)\s*(?:%|prosent|percent)", q)
     age_match = re.search(r"(?:age|alder|år|years old)\s*(?:is|er)?\s*(\d{2})", q)
     employee_age = int(age_match.group(1)) if age_match else None
-    plan = {"requested_outcome": question.strip(), "requirements": [], "facts": {}, "legal_issues": [], "required_sources": [], "calculation": None, "context_used": bool(prior_user_text), "conversation_context": conversation_context[-8:]}
+    plan = {"requested_outcome": question.strip(), "requirements": [], "facts": {}, "legal_issues": [], "required_sources": [], "calculation": None, "context_used": bool(prior_user_text), "conversation_context": conversation_context[-8:], "historical_request": any(term in q for term in ("historical", "in 2015", "in 2016", "as it was", "exact wording"))}
     if holiday_pay:
         plan["required_sources"] = ["Ferieloven § 10", "Ferieloven § 11"]
         plan["legal_issues"] = ["calculation basis and statutory percentage", "normal payment timing"]

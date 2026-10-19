@@ -192,12 +192,13 @@ def ask(request: Request, ask_request: AskRequest):
             result.trace = workflow
         record_request(question_length=len(ask_request.question), cache_hit=False, confidence="low", latency_ms=(time.perf_counter()-start)*1000, provider=provider_name(), metadata={"retrieval_unavailable": True}, tools=workflow["tools"])
         return result
-    if not chunks and (coverage.get("status") == "planned" or intent.get("domain") == "unknown") and not response_plan.get("calculation"):
+    if response_plan.get("historical_request") or (not chunks and (coverage.get("status") == "planned" or intent.get("domain") == "unknown") and not response_plan.get("calculation")):
+        historical = bool(response_plan.get("historical_request"))
         result = AskResponse(
             answer="I can’t safely answer this from the reviewed employment-law sources currently available. Choose a supported topic or consult a qualified adviser for this question." if ask_request.language == "en" else "Jeg kan ikke svare trygt på dette med de kvalitetssikrede arbeidsrettskildene som er tilgjengelige nå. Velg et støttet tema eller kontakt en kvalifisert rådgiver.",
             citations=[], confidence="low", domain=intent.get("domain"), subtopic=intent.get("intent"),
-            escalation_level="review", escalation_reasons=["topic_not_in_reviewed_corpus"],
-            clarifying_questions=["Hvilket konkret arbeidsforhold eller regelverk gjelder?"]
+            escalation_level="review", escalation_reasons=["historical_source_unavailable" if historical else "topic_not_in_reviewed_corpus"],
+            clarifying_questions=[] if historical else (["Which specific employment situation or legal topic applies?"] if ask_request.language == "en" else ["Hvilket konkret arbeidsforhold eller regelverk gjelder?"])
         )
         result.corpus = corpus_metadata()
         record_request(question_length=len(ask_request.question), cache_hit=False, confidence="low", latency_ms=(time.perf_counter()-start)*1000, provider=provider_name(), metadata={"unsupported": True}, tools=workflow["tools"])
